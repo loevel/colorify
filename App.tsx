@@ -9,12 +9,13 @@ import Auth from './components/Auth';
 import { generateScenes, generateColoringPage } from './services/geminiService';
 import { createColoringBookPDF, printColoringBookPDF } from './services/pdfService';
 import { saveToLibrary, getLibrary } from './services/storageService';
-import { getCurrentUser, logout } from './services/authService';
-import { Pencil, Grid, PlusCircle, LogOut, User as UserIcon } from 'lucide-react';
+import { subscribeToAuthChanges, logout } from './services/authService';
+import { Pencil, Grid, PlusCircle, LogOut, Loader2 } from 'lucide-react';
 
 const App: React.FC = () => {
   // Auth State
   const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   // Navigation State
   const [view, setView] = useState<ViewMode>('generator');
@@ -33,8 +34,9 @@ const App: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [needsApiKey, setNeedsApiKey] = useState(false);
+  const [libraryLoading, setLibraryLoading] = useState(false);
 
-  // Check for API key presence and User
+  // Check for API key presence
   const checkApiKey = async () => {
     if (window.aistudio && window.aistudio.hasSelectedApiKey) {
       const hasKey = await window.aistudio.hasSelectedApiKey();
@@ -44,24 +46,36 @@ const App: React.FC = () => {
     return true; 
   };
 
+  // Initialize Auth Listener
   useEffect(() => {
     checkApiKey();
-    const currentUser = getCurrentUser();
-    if (currentUser) {
+    const unsubscribe = subscribeToAuthChanges((currentUser) => {
       setUser(currentUser);
-      setLibraryPages(getLibrary(currentUser.id));
-    }
+      setAuthLoading(false);
+    });
+    return () => unsubscribe();
   }, []);
 
+  // Load Library when user logs in
   useEffect(() => {
     if (user) {
       loadLibrary();
+    } else {
+      setLibraryPages([]);
     }
   }, [user]);
 
-  const loadLibrary = () => {
+  const loadLibrary = async () => {
     if (user) {
-      setLibraryPages(getLibrary(user.id));
+      setLibraryLoading(true);
+      try {
+        const pages = await getLibrary(user.id);
+        setLibraryPages(pages);
+      } catch (e) {
+        console.error("Error loading library", e);
+      } finally {
+        setLibraryLoading(false);
+      }
     }
   };
 
@@ -72,8 +86,8 @@ const App: React.FC = () => {
     }
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     setUser(null);
     setImages([]);
     setLibraryPages([]);
@@ -95,7 +109,7 @@ const App: React.FC = () => {
       const sceneConcepts = await generateScenes(config.theme);
       
       const placeholders: GeneratedImage[] = sceneConcepts.map((concept, i) => ({
-        id: `img-${Date.now()}-${i}`, // Unique ID for storage later
+        id: `img-${Date.now()}-${i}`,
         url: '',
         prompt: concept.description,
         palette: concept.palette,
@@ -112,15 +126,17 @@ const App: React.FC = () => {
              img.prompt === concept.description ? { ...img, url, loading: false } : img
           ));
           
-          // Auto-save to library immediately when successful
-          saveToLibrary(user.id, config.childName, config.theme, {
+          // Auto-save to Firebase
+          await saveToLibrary(user.id, config.childName, config.theme, {
             id: placeholders[index].id,
             url,
             prompt: concept.description,
             palette: concept.palette,
             loading: false
           });
-          loadLibrary(); // Refresh library count
+          
+          // Refresh library in background (don't await strictly)
+          loadLibrary(); 
 
           return url;
         } catch (error) {
@@ -183,16 +199,30 @@ const App: React.FC = () => {
     setView('studio');
   };
 
-  const handleColorGeneratedImage = (img: GeneratedImage) => {
+  const handleColorGeneratedImage = async (img: GeneratedImage) => {
     if (!user) return;
-    // Ensure it's saved first
-    const saved = saveToLibrary(user.id, config.childName, config.theme, img);
-    loadLibrary();
-    handleOpenStudio(saved);
+    setIsGenerating(true); // Show loading while saving to cloud
+    try {
+        const saved = await saveToLibrary(user.id, config.childName, config.theme, img);
+        await loadLibrary();
+        handleOpenStudio(saved);
+    } catch(e) {
+        alert("Could not start coloring session. Cloud save failed.");
+    } finally {
+        setIsGenerating(false);
+    }
   };
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Loader2 className="animate-spin text-indigo-600 w-10 h-10" />
+      </div>
+    );
+  }
+
   if (!user) {
-    return <Auth onLogin={setUser} />;
+    return <Auth onLogin={() => {}} />; // Auth component now handles its own state updates via subscriber
   }
 
   // Render Studio Full Screen
@@ -317,22 +347,30 @@ const App: React.FC = () => {
           <div className="space-y-8">
             <div className="flex items-center justify-between">
               <h2 className="text-3xl font-bold text-slate-800 comic-font">My Collection</h2>
-              <span className="text-slate-500">{libraryPages.length} Drawings</span>
+              <span className="text-slate-500">
+                  {libraryLoading ? 'Loading...' : `${libraryPages.length} Drawings`}
+              </span>
             </div>
             
-            <Library 
-              pages={libraryPages} 
-              onOpenStudio={handleOpenStudio}
-              onRefresh={loadLibrary}
-              userId={user.id}
-            />
+            {libraryLoading ? (
+                 <div className="flex justify-center py-20">
+                    <Loader2 className="animate-spin text-indigo-400 w-8 h-8" />
+                 </div>
+            ) : (
+                <Library 
+                  pages={libraryPages} 
+                  onOpenStudio={handleOpenStudio}
+                  onRefresh={loadLibrary}
+                  userId={user.id}
+                />
+            )}
           </div>
         )}
       </main>
 
       {/* Footer */}
       <footer className="text-center py-8 text-slate-400 text-sm hidden md:block">
-        <p>© {new Date().getFullYear()} ColorCraft. Powered by Gemini.</p>
+        <p>© {new Date().getFullYear()} ColorCraft. Powered by Gemini & Firebase.</p>
       </footer>
 
       <ChatBot />

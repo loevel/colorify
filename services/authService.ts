@@ -1,50 +1,58 @@
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  signOut as firebaseSignOut, 
+  onAuthStateChanged, 
+  updateProfile,
+  User as FirebaseUser
+} from "firebase/auth";
+import { auth } from "./firebaseConfig";
 import { User } from '../types';
 
-const USERS_KEY = 'colorcraft_users';
-const CURRENT_USER_KEY = 'colorcraft_current_user';
+// Map Firebase User to our App User type
+const mapUser = (u: FirebaseUser): User => ({
+  id: u.uid,
+  name: u.displayName || u.email?.split('@')[0] || 'Artist',
+  email: u.email || ''
+});
 
-export const register = (name: string, email: string, password: string): User => {
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  
-  if (users.find((u: any) => u.email === email)) {
-    throw new Error('User already exists');
+export const register = async (name: string, email: string, password: string): Promise<User> => {
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    await updateProfile(userCredential.user, { displayName: name });
+    return mapUser(userCredential.user);
+  } catch (error: any) {
+    throw new Error(formatAuthError(error.code));
   }
-
-  const newUser = {
-    id: 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-    name,
-    email,
-    password // Note: In a production app, never store passwords in plain text!
-  };
-
-  users.push(newUser);
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  
-  const { password: _, ...userWithoutPassword } = newUser;
-  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(userWithoutPassword));
-  
-  return userWithoutPassword;
 };
 
-export const login = (email: string, password: string): User => {
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  const user = users.find((u: any) => u.email === email && u.password === password);
-
-  if (!user) {
-    throw new Error('Invalid email or password');
+export const login = async (email: string, password: string): Promise<User> => {
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    return mapUser(userCredential.user);
+  } catch (error: any) {
+    throw new Error(formatAuthError(error.code));
   }
-
-  const { password: _, ...userWithoutPassword } = user;
-  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(userWithoutPassword));
-  
-  return userWithoutPassword;
 };
 
-export const logout = () => {
-  localStorage.removeItem(CURRENT_USER_KEY);
+export const logout = async () => {
+  await firebaseSignOut(auth);
 };
 
-export const getCurrentUser = (): User | null => {
-  const stored = localStorage.getItem(CURRENT_USER_KEY);
-  return stored ? JSON.parse(stored) : null;
+export const subscribeToAuthChanges = (callback: (user: User | null) => void) => {
+  return onAuthStateChanged(auth, (firebaseUser) => {
+    callback(firebaseUser ? mapUser(firebaseUser) : null);
+  });
+};
+
+// Helper to make Firebase errors user-friendly
+const formatAuthError = (code: string) => {
+  switch (code) {
+    case 'auth/email-already-in-use': return 'Email already registered.';
+    case 'auth/invalid-email': return 'Invalid email address.';
+    case 'auth/weak-password': return 'Password should be at least 6 characters.';
+    case 'auth/user-not-found': return 'User not found.';
+    case 'auth/wrong-password': return 'Incorrect password.';
+    default: return 'Authentication failed. Please try again.';
+  }
 };

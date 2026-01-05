@@ -28,10 +28,10 @@ const Auth: React.FC<Props> = ({ onLogin }) => {
 
       let user: User;
       if (isLogin) {
-        user = login(formData.email, formData.password);
+        user = await login(formData.email, formData.password);
       } else {
         if (!formData.name) throw new Error("Name is required");
-        user = register(formData.name, formData.email, formData.password);
+        user = await register(formData.name, formData.email, formData.password);
       }
       onLogin(user);
     } catch (err: any) {

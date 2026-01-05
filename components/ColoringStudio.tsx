@@ -53,7 +53,7 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
 
-  // Storage Keys
+  // Storage Keys (Still local for preferences)
   const customPaletteKey = `colorcraft_custom_palette_${userId}`;
   const recentColorsKey = `colorcraft_recent_colors_${userId}`;
 
@@ -128,7 +128,8 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
 
     // Load initial state
     const img = new Image();
-    img.src = page.coloredUrl || page.originalUrl; // Load progress or blank
+    // Use coloredUrl if it exists (progress), otherwise original
+    img.src = page.coloredUrl || page.originalUrl; 
     img.crossOrigin = "anonymous";
     
     img.onload = () => {
@@ -389,24 +390,31 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
         ctx.drawImage(lineArtImg, 0, 0, tempCanvas.width, tempCanvas.height);
         resolve();
       };
+      // Fallback in case of error
+      lineArtImg.onerror = () => resolve();
     });
 
     const finalDataUrl = tempCanvas.toDataURL('image/png');
-
-    // Save to storage
-    updatePageWork(userId, page.id, finalDataUrl);
 
     if (download) {
       const link = document.createElement('a');
       link.download = `ColorCraft_${page.childName}_${page.theme}.png`;
       link.href = finalDataUrl;
       link.click();
-    } else {
-      onSave(); // Notify parent to reload library
+      setIsSaving(false);
+      return;
     }
-    
-    setIsSaving(false);
-    setHasUnsavedChanges(false);
+
+    // Save to Cloud Storage
+    try {
+        await updatePageWork(userId, page.id, finalDataUrl);
+        setHasUnsavedChanges(false);
+        onSave(); // Notify parent
+    } catch (e) {
+        alert("Failed to save work to cloud");
+    } finally {
+        setIsSaving(false);
+    }
 
     if (exitAfter) {
       onBack();
@@ -601,6 +609,7 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
               alt="outline" 
               className="absolute inset-0 w-full h-full pointer-events-none select-none"
               style={{ mixBlendMode: 'multiply' }}
+              crossOrigin="anonymous"
             />
           </div>
         </div>

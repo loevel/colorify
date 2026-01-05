@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { SavedPage } from '../types';
-import { Pencil, Printer, Trash2, Clock } from 'lucide-react';
+import { Pencil, Printer, Trash2, Clock, Loader2 } from 'lucide-react';
 import { deletePage } from '../services/storageService';
 import { printColoringBookPDF } from '../services/pdfService';
 
@@ -12,12 +12,20 @@ interface Props {
 }
 
 const Library: React.FC<Props> = ({ pages, onOpenStudio, onRefresh, userId }) => {
-  
-  const handleDelete = (id: string, e: React.MouseEvent) => {
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm("Are you sure you want to delete this drawing?")) {
-      deletePage(userId, id);
-      onRefresh();
+    if (confirm("Are you sure you want to delete this drawing from the cloud?")) {
+      setDeletingId(id);
+      try {
+        await deletePage(userId, id);
+        onRefresh();
+      } catch (error) {
+        alert("Failed to delete page.");
+      } finally {
+        setDeletingId(null);
+      }
     }
   };
 
@@ -57,6 +65,7 @@ const Library: React.FC<Props> = ({ pages, onOpenStudio, onRefresh, userId }) =>
               src={page.thumbnailUrl || page.originalUrl} 
               alt={page.theme} 
               className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-500"
+              loading="lazy"
             />
             {/* Overlay Actions */}
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
@@ -79,10 +88,11 @@ const Library: React.FC<Props> = ({ pages, onOpenStudio, onRefresh, userId }) =>
                  </button>
                  <button 
                   onClick={(e) => handleDelete(page.id, e)}
+                  disabled={deletingId === page.id}
                   className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
                   title="Delete"
                  >
-                   <Trash2 size={16} />
+                   {deletingId === page.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
                  </button>
               </div>
             </div>
