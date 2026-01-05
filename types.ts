@@ -1,0 +1,54 @@
+export type ImageSize = '1K' | '2K' | '4K';
+
+export interface GeneratedImage {
+  id: string;
+  url: string; // Base64 data URL
+  prompt: string;
+  loading: boolean;
+  palette?: string[]; // Array of hex color codes
+  error?: string;
+}
+
+export interface SavedPage {
+  id: string;
+  originalUrl: string; // The original black and white outline
+  coloredUrl?: string; // The user's colored version (or the work in progress layer)
+  thumbnailUrl: string; // For the library view
+  theme: string;
+  childName: string;
+  createdAt: number;
+  lastModified: number;
+  palette: string[];
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export type ViewMode = 'generator' | 'library' | 'studio';
+
+export interface ChatMessage {
+  role: 'user' | 'model';
+  text: string;
+  timestamp: number;
+}
+
+export interface GeneratorConfig {
+  childName: string;
+  theme: string;
+  imageSize: ImageSize;
+}
+
+// Type declaration for the custom window property for API key selection
+declare global {
+  interface AIStudio {
+    hasSelectedApiKey: () => Promise<boolean>;
+    openSelectKey: () => Promise<void>;
+  }
+
+  interface Window {
+    aistudio?: AIStudio;
+  }
+}
