@@ -407,7 +407,8 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
 
     // Save to Cloud Storage
     try {
-        await updatePageWork(userId, page.id, finalDataUrl);
+        // Updated to pass the theme name as required by new storage logic
+        await updatePageWork(userId, page.theme, page.id, finalDataUrl);
         setHasUnsavedChanges(false);
         onSave(); // Notify parent
     } catch (e) {

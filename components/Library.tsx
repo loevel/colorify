@@ -14,12 +14,13 @@ interface Props {
 const Library: React.FC<Props> = ({ pages, onOpenStudio, onRefresh, userId }) => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
+  const handleDelete = async (page: SavedPage, e: React.MouseEvent) => {
     e.stopPropagation();
     if (confirm("Are you sure you want to delete this drawing from the cloud?")) {
-      setDeletingId(id);
+      setDeletingId(page.id);
       try {
-        await deletePage(userId, id);
+        // We now need the theme to find the correct collection path
+        await deletePage(userId, page.theme, page.id);
         onRefresh();
       } catch (error) {
         alert("Failed to delete page.");
@@ -87,7 +88,7 @@ const Library: React.FC<Props> = ({ pages, onOpenStudio, onRefresh, userId }) =>
                    <Printer size={16} />
                  </button>
                  <button 
-                  onClick={(e) => handleDelete(page.id, e)}
+                  onClick={(e) => handleDelete(page, e)}
                   disabled={deletingId === page.id}
                   className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
                   title="Delete"

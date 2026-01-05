@@ -67,10 +67,17 @@ const generateDoc = (childName: string, theme: string, images: GeneratedImage[])
     const maxImgWidth = pageWidth - (margin * 2);
     const maxImgHeight = pageHeight - (margin * 2);
     
-    // Add image
-    // Note: Assuming generated images are roughly 3:4. 
-    // We fit them nicely within margins.
-    doc.addImage(img.url, "PNG", margin, margin, maxImgWidth, maxImgHeight, undefined, 'FAST');
+    try {
+      // Add image
+      // Note: Assuming generated images are roughly 3:4. 
+      // We fit them nicely within margins.
+      doc.addImage(img.url, "PNG", margin, margin, maxImgWidth, maxImgHeight, undefined, 'FAST');
+    } catch (e) {
+      console.warn("Could not add page image", e);
+      doc.setFontSize(12);
+      doc.setTextColor(200, 50, 50);
+      doc.text("Image could not be loaded.", pageWidth / 2, pageHeight / 2, { align: "center" });
+    }
     
     // Optional footer
     doc.setFontSize(10);
