@@ -1,3 +1,4 @@
+
 import { 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
@@ -6,21 +7,51 @@ import {
   updateProfile,
   User as FirebaseUser
 } from "firebase/auth";
-import { auth } from "./firebaseConfig";
-import { User } from '../types';
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { auth, db } from "./firebaseConfig";
+import { User, SubscriptionTier } from '../types';
 
 // Map Firebase User to our App User type
-const mapUser = (u: FirebaseUser): User => ({
-  id: u.uid,
-  name: u.displayName || u.email?.split('@')[0] || 'Artist',
-  email: u.email || ''
-});
+const mapUser = async (u: FirebaseUser): Promise<User> => {
+  // Fetch additional user data from Firestore
+  let subscriptionTier: SubscriptionTier = 'free';
+  let subscriptionStatus: 'active' | 'canceled' | 'past_due' = 'active';
+
+  try {
+    const userDoc = await getDoc(doc(db, "users", u.uid));
+    if (userDoc.exists()) {
+      const data = userDoc.data();
+      subscriptionTier = data.subscriptionTier || 'free';
+      subscriptionStatus = data.subscriptionStatus || 'active';
+    }
+  } catch (e) {
+    console.error("Error fetching user profile", e);
+  }
+
+  return {
+    id: u.uid,
+    name: u.displayName || u.email?.split('@')[0] || 'Artist',
+    email: u.email || '',
+    subscriptionTier,
+    subscriptionStatus
+  };
+};
 
 export const register = async (name: string, email: string, password: string): Promise<User> => {
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(userCredential.user, { displayName: name });
-    return mapUser(userCredential.user);
+    
+    // Create the user document in Firestore with default subscription
+    await setDoc(doc(db, "users", userCredential.user.uid), {
+      name,
+      email,
+      subscriptionTier: 'free',
+      subscriptionStatus: 'active',
+      createdAt: Date.now()
+    });
+
+    return await mapUser(userCredential.user);
   } catch (error: any) {
     throw new Error(formatAuthError(error.code));
   }
@@ -29,7 +60,7 @@ export const register = async (name: string, email: string, password: string): P
 export const login = async (email: string, password: string): Promise<User> => {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    return mapUser(userCredential.user);
+    return await mapUser(userCredential.user);
   } catch (error: any) {
     throw new Error(formatAuthError(error.code));
   }
@@ -40,8 +71,13 @@ export const logout = async () => {
 };
 
 export const subscribeToAuthChanges = (callback: (user: User | null) => void) => {
-  return onAuthStateChanged(auth, (firebaseUser) => {
-    callback(firebaseUser ? mapUser(firebaseUser) : null);
+  return onAuthStateChanged(auth, async (firebaseUser) => {
+    if (firebaseUser) {
+      const appUser = await mapUser(firebaseUser);
+      callback(appUser);
+    } else {
+      callback(null);
+    }
   });
 };
 

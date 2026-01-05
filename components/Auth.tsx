@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { User } from '../types';
 import { login, register } from '../services/authService';
-import { LogIn, UserPlus, Sparkles, Palette } from 'lucide-react';
+import { LogIn, UserPlus, Sparkles, Palette, ArrowLeft } from 'lucide-react';
 
 interface Props {
   onLogin: (user: User) => void;
+  onBack: () => void;
 }
 
-const Auth: React.FC<Props> = ({ onLogin }) => {
+const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
@@ -42,7 +43,16 @@ const Auth: React.FC<Props> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 relative">
+      {/* Back Button */}
+      <button 
+        onClick={onBack}
+        className="absolute top-6 left-6 p-2 text-slate-500 hover:text-indigo-600 hover:bg-white bg-white/50 rounded-full transition-all flex items-center gap-2"
+      >
+        <ArrowLeft size={20} />
+        <span className="text-sm font-bold hidden sm:inline">Back</span>
+      </button>
+
       <div className="max-w-md w-full bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100 animate-fade-in-up">
         {/* Header */}
         <div className="bg-gradient-to-r from-pink-500 to-indigo-600 p-8 text-center text-white">

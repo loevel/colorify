@@ -1,3 +1,4 @@
+
 export type ImageSize = '1K' | '2K' | '4K';
 
 export interface GeneratedImage {
@@ -21,13 +22,31 @@ export interface SavedPage {
   palette: string[];
 }
 
+export type SubscriptionTier = 'free' | 'pro' | 'unlimited';
+
 export interface User {
   id: string;
   name: string;
   email: string;
+  subscriptionTier: SubscriptionTier;
+  subscriptionStatus: 'active' | 'canceled' | 'past_due';
 }
 
-export type ViewMode = 'generator' | 'library' | 'studio';
+export interface PlanFeature {
+  text: string;
+  included: boolean;
+}
+
+export interface SubscriptionPlan {
+  id: SubscriptionTier;
+  name: string;
+  price: number; // Monthly price in cents
+  description: string;
+  features: PlanFeature[];
+  highlight?: boolean;
+}
+
+export type ViewMode = 'generator' | 'library' | 'studio' | 'subscription' | 'privacy' | 'terms' | 'contact';
 
 export interface ChatMessage {
   role: 'user' | 'model';

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { GeneratorConfig, GeneratedImage, SavedPage, ViewMode, User } from './types';
 import GeneratorForm from './components/GeneratorForm';
@@ -6,16 +7,24 @@ import ChatBot from './components/ChatBot';
 import ColoringStudio from './components/ColoringStudio';
 import Library from './components/Library';
 import Auth from './components/Auth';
+import LandingPage from './components/LandingPage';
+import SubscriptionPage from './components/SubscriptionPage';
+import PrivacyPage from './components/PrivacyPage';
+import TermsPage from './components/TermsPage';
+import ContactPage from './components/ContactPage';
 import { generateScenes, generateColoringPage } from './services/geminiService';
 import { createColoringBookPDF, printColoringBookPDF } from './services/pdfService';
 import { saveToLibrary, getLibrary } from './services/storageService';
 import { subscribeToAuthChanges, logout } from './services/authService';
-import { Pencil, Grid, PlusCircle, LogOut, Loader2 } from 'lucide-react';
+import { Pencil, Grid, PlusCircle, LogOut, Loader2, Crown } from 'lucide-react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from './services/firebaseConfig';
 
 const App: React.FC = () => {
   // Auth State
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [showAuth, setShowAuth] = useState(false);
 
   // Navigation State
   const [view, setView] = useState<ViewMode>('generator');
@@ -79,6 +88,23 @@ const App: React.FC = () => {
     }
   };
 
+  const refreshUserProfile = async () => {
+    if (!user) return;
+    try {
+      const userDoc = await getDoc(doc(db, "users", user.id));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        setUser(prev => prev ? { 
+          ...prev, 
+          subscriptionTier: data.subscriptionTier || 'free',
+          subscriptionStatus: data.subscriptionStatus || 'active'
+        } : null);
+      }
+    } catch (e) {
+      console.error("Failed to refresh user profile", e);
+    }
+  };
+
   const handleSelectKey = async () => {
     if (window.aistudio && window.aistudio.openSelectKey) {
       await window.aistudio.openSelectKey();
@@ -89,9 +115,11 @@ const App: React.FC = () => {
   const handleLogout = async () => {
     await logout();
     setUser(null);
+    setShowAuth(false); // Reset to landing page on logout
     setImages([]);
     setLibraryPages([]);
     setConfig({ childName: '', theme: '', imageSize: '1K' });
+    setView('generator'); // Reset view
   };
 
   const handleGenerate = async () => {
@@ -100,6 +128,12 @@ const App: React.FC = () => {
     if (!hasKey) return;
 
     if (!config.theme || !config.childName) return;
+
+    // Basic Subscription Check (In a real app, strict limits would be backend enforced)
+    if (user.subscriptionTier === 'free' && images.length > 0 && view === 'generator') {
+       // Just a soft UX hint, not a hard block for this demo
+       console.log("Free tier user generating images");
+    }
 
     setIsGenerating(true);
     setImages([]);
@@ -120,6 +154,8 @@ const App: React.FC = () => {
       // 2. Generate Images in parallel
       const imagePromises = sceneConcepts.map(async (concept, index) => {
         try {
+          // If user is Pro/Unlimited, they can request higher quality. 
+          // If Free, force 1K or handle in generateColoringPage logic.
           const url = await generateColoringPage(concept.description, config.imageSize);
           
           setImages(prev => prev.map(img => 
@@ -167,6 +203,11 @@ const App: React.FC = () => {
   };
 
   const handleDownloadPDF = async () => {
+    if (user?.subscriptionTier === 'free') {
+       alert("Downloading PDFs is a premium feature. Please upgrade to Pro!");
+       setView('subscription');
+       return;
+    }
     setIsDownloading(true);
     try {
       const validImages = images.filter(img => img.url && !img.loading && !img.error);
@@ -213,6 +254,16 @@ const App: React.FC = () => {
     }
   };
 
+  // Navigation Helper
+  const navigateBack = () => {
+    if (user) {
+      setView('generator');
+    } else {
+      // If logged out, essentially "reload" LandingPage state by falling through
+      setView('generator'); 
+    }
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -221,8 +272,22 @@ const App: React.FC = () => {
     );
   }
 
+  // Public Routes (Accessible regardless of Auth, but typically triggered from footer)
+  if (view === 'privacy') return <PrivacyPage onBack={navigateBack} />;
+  if (view === 'terms') return <TermsPage onBack={navigateBack} />;
+  if (view === 'contact') return <ContactPage onBack={navigateBack} />;
+
+  // Not logged in routing
   if (!user) {
-    return <Auth onLogin={() => {}} />; // Auth component now handles its own state updates via subscriber
+    if (showAuth) {
+      return (
+        <Auth 
+          onLogin={() => {}} // Auth state handled by Firebase listener
+          onBack={() => setShowAuth(false)} 
+        />
+      );
+    }
+    return <LandingPage onGetStarted={() => setShowAuth(true)} onNavigate={setView} />;
   }
 
   // Render Studio Full Screen
@@ -241,7 +306,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
+    <div className="min-h-screen bg-slate-50 pb-20 flex flex-col">
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -271,6 +336,13 @@ const App: React.FC = () => {
               >
                 <Grid size={16} /> My Library
               </button>
+              <button 
+                onClick={() => setView('subscription')}
+                className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all flex items-center gap-2 ${view === 'subscription' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                <Crown size={16} className={user.subscriptionTier !== 'free' ? 'text-yellow-500 fill-yellow-500' : ''} /> 
+                {user.subscriptionTier === 'free' ? 'Upgrade' : 'My Plan'}
+              </button>
             </div>
 
             <div className="h-6 w-px bg-slate-200 hidden md:block"></div>
@@ -278,7 +350,7 @@ const App: React.FC = () => {
             <div className="flex items-center gap-3">
               <div className="flex flex-col items-end hidden sm:flex">
                 <span className="text-sm font-bold text-slate-700">{user.name}</span>
-                <span className="text-xs text-slate-400">Artist</span>
+                <span className="text-xs text-slate-400 capitalize">{user.subscriptionTier}</span>
               </div>
               <button 
                 onClick={handleLogout}
@@ -308,10 +380,17 @@ const App: React.FC = () => {
             <Grid size={24} />
             <span className="text-[10px] font-bold">Library</span>
           </button>
+          <button 
+            onClick={() => setView('subscription')}
+            className={`flex flex-col items-center p-2 rounded-lg ${view === 'subscription' ? 'text-indigo-600' : 'text-slate-400'}`}
+          >
+            <Crown size={24} className={user.subscriptionTier !== 'free' ? 'text-yellow-500 fill-yellow-500' : ''} />
+            <span className="text-[10px] font-bold">Plan</span>
+          </button>
       </div>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-24 md:pb-10">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-24 md:pb-10 flex-1 w-full">
         {view === 'generator' && (
           <>
             <div className="text-center mb-12">
@@ -366,10 +445,19 @@ const App: React.FC = () => {
             )}
           </div>
         )}
+
+        {view === 'subscription' && (
+           <SubscriptionPage user={user} onUpdateUser={refreshUserProfile} />
+        )}
       </main>
 
       {/* Footer */}
-      <footer className="text-center py-8 text-slate-400 text-sm hidden md:block">
+      <footer className="text-center py-8 text-slate-400 text-sm hidden md:block bg-slate-50 mt-auto">
+        <div className="flex justify-center gap-6 mb-4">
+            <button onClick={() => setView('privacy')} className="hover:text-indigo-600 transition-colors">Privacy</button>
+            <button onClick={() => setView('terms')} className="hover:text-indigo-600 transition-colors">Terms</button>
+            <button onClick={() => setView('contact')} className="hover:text-indigo-600 transition-colors">Contact</button>
+        </div>
         <p>© {new Date().getFullYear()} ColorCraft. Powered by Gemini & Firebase.</p>
       </footer>
 

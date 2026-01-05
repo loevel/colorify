@@ -28,6 +28,7 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
   // Canvas refs
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const autoSaveRef = useRef<() => void>(() => {});
   
   // State
   const [activeColor, setActiveColor] = useState<string>(page.palette[0] || '#FF5733');
@@ -429,6 +430,25 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
       onBack();
     }
   };
+
+  // Auto-save Implementation
+  useEffect(() => {
+    autoSaveRef.current = () => {
+      if (hasUnsavedChanges && !isSaving) {
+        handleSave(false, false);
+      }
+    };
+  }); // Updates on every render to capture latest state closure
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (autoSaveRef.current) {
+        autoSaveRef.current();
+      }
+    }, 120000); // 2 minutes
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-100 flex flex-col h-screen">
