@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { Download, Palette, AlertCircle, Printer, Paintbrush } from 'lucide-react';
+import { Download, Palette, AlertCircle, Printer, Paintbrush, Loader2 } from 'lucide-react';
 import { GeneratedImage } from '../types';
 
 interface Props {
@@ -8,6 +9,7 @@ interface Props {
   onPrintPDF: () => void;
   onColorImage: (img: GeneratedImage) => void;
   isDownloading: boolean;
+  processingId: string | null;
   childName: string;
 }
 
@@ -44,7 +46,7 @@ const LoadingPlaceholder: React.FC<{ prompt: string }> = ({ prompt }) => {
   );
 };
 
-const ImageGallery: React.FC<Props> = ({ images, onDownloadPDF, onPrintPDF, onColorImage, isDownloading, childName }) => {
+const ImageGallery: React.FC<Props> = ({ images, onDownloadPDF, onPrintPDF, onColorImage, isDownloading, processingId, childName }) => {
   if (images.length === 0) return null;
 
   // Check if at least one image loaded successfully
@@ -103,12 +105,25 @@ const ImageGallery: React.FC<Props> = ({ images, onDownloadPDF, onPrintPDF, onCo
                     alt="Coloring Page" 
                     className="w-full h-full object-contain p-4 transition-transform duration-500 group-hover:scale-105" 
                   />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors pointer-events-none flex items-center justify-center">
+                  {/* Overlay for actions - Ensure z-index is high enough to be clickable */}
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors pointer-events-none flex items-center justify-center z-10">
                       <button 
                         onClick={() => onColorImage(img)}
-                        className="bg-white text-indigo-600 px-6 py-3 rounded-full font-bold shadow-lg transform translate-y-10 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center gap-2 pointer-events-auto hover:bg-indigo-50"
+                        disabled={processingId !== null}
+                        className={`bg-white text-indigo-600 px-6 py-3 rounded-full font-bold shadow-lg transform transition-all duration-300 flex items-center gap-2 pointer-events-auto hover:bg-indigo-50 border border-indigo-100 ${
+                          processingId === img.id ? 'opacity-100 translate-y-0' : 'translate-y-10 group-hover:translate-y-0 opacity-0 group-hover:opacity-100'
+                        }`}
                       >
-                         <Paintbrush size={20} /> Color Now
+                         {processingId === img.id ? (
+                           <>
+                             <Loader2 size={20} className="animate-spin" />
+                             Opening Studio...
+                           </>
+                         ) : (
+                           <>
+                             <Paintbrush size={20} /> Color Now
+                           </>
+                         )}
                       </button>
                   </div>
                 </>

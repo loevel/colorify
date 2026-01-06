@@ -1,7 +1,8 @@
+
 import React, { useRef, useState, useEffect } from 'react';
 import { 
   ArrowLeft, Save, Undo, Redo, ZoomIn, ZoomOut, 
-  Eraser, Paintbrush, Download, Highlighter, PenTool, Sparkles, Plus, Trash2, X, AlertTriangle, Layers
+  Eraser, Paintbrush, Download, Highlighter, PenTool, Sparkles, Plus, Trash2, X, AlertTriangle, Layers, Loader2
 } from 'lucide-react';
 import { SavedPage } from '../types';
 import { updatePageWork } from '../services/storageService';
@@ -39,6 +40,9 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
   const [isDrawing, setIsDrawing] = useState(false);
   const [blendMode, setBlendMode] = useState<GlobalCompositeOperation>('source-over');
   
+  const [isCanvasReady, setIsCanvasReady] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+
   // Palette State
   const [customPalette, setCustomPalette] = useState<string[]>([]);
   const [recentColors, setRecentColors] = useState<string[]>([]);
@@ -127,10 +131,20 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return;
 
+    setIsCanvasReady(false);
+    setLoadError(false);
+
     // Load initial state
     const img = new Image();
     // Use coloredUrl if it exists (progress), otherwise original
+    // Use originalUrl if no coloredUrl exists to set dimensions
+    const isResuming = !!page.coloredUrl;
     img.src = page.coloredUrl || page.originalUrl; 
+    
+    // Using anonymous crossOrigin is required if we want to extract data from the canvas later (save).
+    // However, if the server (e.g. storage) doesn't support CORS, this will fail.
+    // We try with anonymous first. If we are just starting new (no coloredUrl), we could skip it for dimensions only,
+    // but we eventually need to save, so getting a CORS error early is actually better than later.
     img.crossOrigin = "anonymous";
     
     img.onload = () => {
@@ -150,8 +164,18 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
       setHistory([initialState]);
       setRedoStack([]);
       setHasUnsavedChanges(false);
+      setIsCanvasReady(true);
     };
-  }, [page.id]);
+
+    img.onerror = () => {
+      console.error("Failed to load image for canvas. Likely CORS or network issue.");
+      setLoadError(true);
+      // Fallback: Set some default dimension so the UI isn't invisible if we want to allow retry
+      canvas.width = 800;
+      canvas.height = 1000;
+      setIsCanvasReady(true); 
+    };
+  }, [page.id, page.coloredUrl, page.originalUrl]);
 
   const saveHistory = () => {
     const canvas = canvasRef.current;
@@ -299,6 +323,7 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
   };
 
   const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isCanvasReady) return;
     if ('touches' in e) e.preventDefault();
     
     setIsDrawing(true);
@@ -392,7 +417,10 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
         resolve();
       };
       // Fallback in case of error
-      lineArtImg.onerror = () => resolve();
+      lineArtImg.onerror = () => {
+        console.error("Failed to load line art for saving");
+        resolve();
+      };
     });
 
     const finalDataUrl = tempCanvas.toDataURL('image/png');
@@ -604,12 +632,36 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
           ref={containerRef}
           className="flex-1 bg-slate-200/50 overflow-auto flex items-center justify-center p-8 relative cursor-crosshair touch-none"
         >
+          {/* Loading Indicator */}
+          {!isCanvasReady && !loadError && (
+             <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-slate-100/80 backdrop-blur-sm">
+                <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mb-4" />
+                <p className="font-bold text-slate-600 animate-pulse">Setting up studio...</p>
+             </div>
+          )}
+          
+          {/* Load Error State */}
+          {loadError && (
+             <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-slate-100">
+                <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
+                <h3 className="font-bold text-slate-800 text-lg">Failed to Load Image</h3>
+                <p className="text-slate-600 mb-6">We couldn't load the drawing canvas.</p>
+                <button 
+                   onClick={onBack}
+                   className="px-6 py-3 bg-white border border-slate-300 rounded-xl font-bold shadow-sm hover:bg-slate-50"
+                >
+                   Go Back
+                </button>
+             </div>
+          )}
+
           <div 
-            className="relative shadow-2xl bg-white"
+            className="relative shadow-2xl bg-white transition-opacity duration-300"
             style={{ 
               transform: `scale(${ZOOM_LEVELS[zoomIndex]})`,
               transformOrigin: 'center center',
-              transition: 'transform 0.2s ease-out'
+              transition: 'transform 0.2s ease-out',
+              opacity: isCanvasReady ? 1 : 0
             }}
           >
             {/* The Drawing Layer */}

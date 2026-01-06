@@ -41,6 +41,7 @@ const App: React.FC = () => {
 
   // Status State
   const [isGenerating, setIsGenerating] = useState(false);
+  const [processingId, setProcessingId] = useState<string | null>(null); // For specific image actions
   const [isDownloading, setIsDownloading] = useState(false);
   const [needsApiKey, setNeedsApiKey] = useState(false);
   const [libraryLoading, setLibraryLoading] = useState(false);
@@ -242,15 +243,20 @@ const App: React.FC = () => {
 
   const handleColorGeneratedImage = async (img: GeneratedImage) => {
     if (!user) return;
-    setIsGenerating(true); // Show loading while saving to cloud
+    setProcessingId(img.id); // Show specific loading on the button
     try {
         const saved = await saveToLibrary(user.id, config.childName, config.theme, img);
+        
+        // Use the base64 url from 'img' to ensure it loads instantly in studio and bypasses CORS/Network issues for this session
+        const pageWithLocalUrl: SavedPage = { ...saved, originalUrl: img.url };
+        
         await loadLibrary();
-        handleOpenStudio(saved);
+        handleOpenStudio(pageWithLocalUrl);
     } catch(e) {
+        console.error("Studio open error", e);
         alert("Could not start coloring session. Cloud save failed.");
     } finally {
-        setIsGenerating(false);
+        setProcessingId(null);
     }
   };
 
@@ -417,6 +423,7 @@ const App: React.FC = () => {
               onPrintPDF={handlePrintPDF}
               onColorImage={handleColorGeneratedImage}
               isDownloading={isDownloading}
+              processingId={processingId}
               childName={config.childName}
             />
           </>
