@@ -2,7 +2,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { 
   ArrowLeft, Save, Undo, Redo, ZoomIn, ZoomOut, 
-  Eraser, Paintbrush, Download, Highlighter, PenTool, Sparkles, Plus, Trash2, X, AlertTriangle, Layers, Loader2
+  Eraser, Paintbrush, Download, Highlighter, PenTool, Sparkles, Plus, Trash2, X, AlertTriangle, Layers, Loader2, Lock
 } from 'lucide-react';
 import { SavedPage } from '../types';
 import { updatePageWork } from '../services/storageService';
@@ -42,6 +42,7 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
   
   const [isCanvasReady, setIsCanvasReady] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const [isTainted, setIsTainted] = useState(false); // New state to track if canvas is tainted (CORS failure)
 
   // Palette State
   const [customPalette, setCustomPalette] = useState<string[]>([]);
@@ -133,69 +134,90 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
 
     setIsCanvasReady(false);
     setLoadError(false);
+    setIsTainted(false);
 
-    // Load initial state
-    const img = new Image();
-    // Use coloredUrl if it exists (progress), otherwise original
-    // Use originalUrl if no coloredUrl exists to set dimensions
-    const isResuming = !!page.coloredUrl;
-    img.src = page.coloredUrl || page.originalUrl; 
+    // Determines which URL to load
+    const urlToLoad = page.coloredUrl || page.originalUrl;
     
-    // Using anonymous crossOrigin is required if we want to extract data from the canvas later (save).
-    // However, if the server (e.g. storage) doesn't support CORS, this will fail.
-    // We try with anonymous first. If we are just starting new (no coloredUrl), we could skip it for dimensions only,
-    // but we eventually need to save, so getting a CORS error early is actually better than later.
-    img.crossOrigin = "anonymous";
-    
-    img.onload = () => {
+    // Function to load image with handling for CORS
+    const setupCanvas = (img: HTMLImageElement, isTaintedMode: boolean) => {
       canvas.width = img.width;
       canvas.height = img.height;
       
       if (page.coloredUrl) {
-         // If we have previous work, draw it
          ctx.drawImage(img, 0, 0);
       } else {
-        // If new, clear canvas (transparent) because the line art is an overlay
         ctx.clearRect(0, 0, canvas.width, canvas.height);
       }
       
-      // Save initial state to history without clearing redo (as it's init)
-      const initialState = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      setHistory([initialState]);
-      setRedoStack([]);
-      setHasUnsavedChanges(false);
-      setIsCanvasReady(true);
+      try {
+        const initialState = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        setHistory([initialState]);
+        setRedoStack([]);
+        setHasUnsavedChanges(false);
+        setIsTainted(isTaintedMode); // Set the mode based on how we loaded
+        setIsCanvasReady(true);
+      } catch (e) {
+        // If getting image data fails even here, it's definitely tainted
+        console.warn("Canvas tainted, saving disabled");
+        setIsTainted(true);
+        setIsCanvasReady(true);
+      }
     };
 
-    img.onerror = () => {
-      console.error("Failed to load image for canvas. Likely CORS or network issue.");
-      setLoadError(true);
-      // Fallback: Set some default dimension so the UI isn't invisible if we want to allow retry
-      canvas.width = 800;
-      canvas.height = 1000;
-      setIsCanvasReady(true); 
+    // Attempt 1: Load with CORS (crossOrigin="anonymous")
+    // This allows us to use toDataURL() later for saving.
+    const imgSecure = new Image();
+    imgSecure.crossOrigin = "anonymous";
+    imgSecure.src = urlToLoad;
+
+    imgSecure.onload = () => {
+      setupCanvas(imgSecure, false);
     };
+
+    imgSecure.onerror = () => {
+      console.warn("CORS load failed. Falling back to insecure load.");
+      
+      // Attempt 2: Load without CORS
+      // We can display the image, but we cannot save it (Tainted Canvas).
+      const imgInsecure = new Image();
+      imgInsecure.src = urlToLoad; // No crossOrigin set
+      
+      imgInsecure.onload = () => {
+        setupCanvas(imgInsecure, true);
+      };
+      
+      imgInsecure.onerror = () => {
+        console.error("Failed to load image entirely.");
+        setLoadError(true);
+        setIsCanvasReady(true);
+      };
+    };
+
   }, [page.id, page.coloredUrl, page.originalUrl]);
 
   const saveHistory = () => {
+    // If canvas is tainted, we can't read pixels, so history is disabled to prevent crash
+    if (isTainted) return; 
+
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
-    const newState = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-    setHistory(prev => {
-      // Limit history to 20 steps
-      const newHistory = [...prev, newState];
-      if (newHistory.length > 20) {
-        return newHistory.slice(newHistory.length - 20);
-      }
-      return newHistory;
-    });
-    
-    // Clear redo stack when new action is performed
-    setRedoStack([]);
+    try {
+      const newState = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      setHistory(prev => {
+        const newHistory = [...prev, newState];
+        if (newHistory.length > 20) {
+          return newHistory.slice(newHistory.length - 20);
+        }
+        return newHistory;
+      });
+      setRedoStack([]);
+    } catch (e) {
+      console.error("Cannot save history on tainted canvas");
+    }
   };
 
   const handleUndo = () => {
@@ -205,19 +227,9 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
 
-    // Current state (to be moved to redo)
-    const currentState = history[history.length - 1];
-    
-    // Previous state (to be restored)
     const previousState = history[history.length - 2];
-    
-    // Move current to redo stack
-    setRedoStack(prev => [...prev, currentState]);
-    
-    // Remove current from history
+    setRedoStack(prev => [...prev, history[history.length - 1]]);
     setHistory(prev => prev.slice(0, -1));
-    
-    // Restore canvas
     ctx.putImageData(previousState, 0, 0);
     setHasUnsavedChanges(true);
   };
@@ -229,16 +241,9 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
 
-    // State to restore
     const stateToRestore = redoStack[redoStack.length - 1];
-
-    // Add to history
     setHistory(prev => [...prev, stateToRestore]);
-
-    // Remove from redo
     setRedoStack(prev => prev.slice(0, -1));
-
-    // Restore canvas
     ctx.putImageData(stateToRestore, 0, 0);
     setHasUnsavedChanges(true);
   };
@@ -252,26 +257,20 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
     const ctx = cvs.getContext('2d');
     if (!ctx) return null;
 
-    // Fill background with color
     ctx.fillStyle = color;
     ctx.fillRect(0, 0, size, size);
 
     if (type === 'crayon') {
-      // Rough paper texture effect
-      // Add noise
       for (let i = 0; i < 600; i++) {
-        // White specs
         ctx.fillStyle = `rgba(255,255,255,${0.2 + Math.random() * 0.3})`;
         const w = Math.random() * 2;
         ctx.fillRect(Math.random() * size, Math.random() * size, w, w);
       }
       for (let i = 0; i < 300; i++) {
-        // Dark specs for texture depth
         ctx.fillStyle = `rgba(0,0,0,${0.1 + Math.random() * 0.1})`;
         ctx.fillRect(Math.random() * size, Math.random() * size, 1, 1);
       }
     } else if (type === 'glitter') {
-      // Sparkles
       for (let i = 0; i < 80; i++) {
         ctx.fillStyle = `rgba(255, 255, 255, ${0.5 + Math.random() * 0.5})`;
         const x = Math.random() * size;
@@ -280,8 +279,6 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
         ctx.beginPath();
         ctx.arc(x, y, r, 0, Math.PI * 2);
         ctx.fill();
-        
-        // Star shape occasionally
         if (i % 12 === 0) {
            ctx.fillStyle = '#FFFFFF';
            ctx.save();
@@ -294,7 +291,6 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
         }
       }
     }
-
     return cvs;
   };
 
@@ -344,10 +340,8 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
       ctx.strokeStyle = '#000000';
     } else {
       ctx.globalCompositeOperation = blendMode;
-      
-      // Apply texture brushes
       if (brushType === 'marker') {
-        ctx.globalAlpha = 0.6; // Marker transparency
+        ctx.globalAlpha = 0.6;
         ctx.strokeStyle = activeColor;
       } else {
         ctx.globalAlpha = 1.0;
@@ -366,10 +360,8 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
     if (!isDrawing) return;
     if ('touches' in e) e.preventDefault();
     const { x, y } = getCoordinates(e);
-    
     const ctx = canvasRef.current?.getContext('2d');
     if (!ctx) return;
-
     ctx.lineTo(x, y);
     ctx.stroke();
   };
@@ -387,25 +379,26 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
 
   // Saving Logic (Composite Layer)
   const handleSave = async (download = false, exitAfter = false) => {
+    if (isTainted) {
+      alert("Cannot save: Image loaded in restricted mode (Security/CORS).");
+      return;
+    }
+
     setIsSaving(true);
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Create a composite canvas
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = canvas.width;
     tempCanvas.height = canvas.height;
     const ctx = tempCanvas.getContext('2d');
     if (!ctx) return;
 
-    // 1. Fill white background
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-
-    // 2. Draw user artwork
     ctx.drawImage(canvas, 0, 0);
 
-    // 3. Draw Line Art on top with Multiply
+    // Fallback for line art overlay: try secure, if fail, try insecure but just warn
     const lineArtImg = new Image();
     lineArtImg.crossOrigin = "anonymous";
     lineArtImg.src = page.originalUrl;
@@ -416,34 +409,36 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
         ctx.drawImage(lineArtImg, 0, 0, tempCanvas.width, tempCanvas.height);
         resolve();
       };
-      // Fallback in case of error
       lineArtImg.onerror = () => {
+        // If we can't load the outline for saving, we save just the colors? 
+        // Or we try without CORS (which will taint this temp canvas too, forcing failure)
+        // Since we are here, we assume the user's canvas wasn't tainted, so the image SHOULD load.
+        // If it fails, maybe network glitch.
         console.error("Failed to load line art for saving");
         resolve();
       };
     });
 
-    const finalDataUrl = tempCanvas.toDataURL('image/png');
-
-    if (download) {
-      const link = document.createElement('a');
-      link.download = `ColorCraft_${page.childName}_${page.theme}.png`;
-      link.href = finalDataUrl;
-      link.click();
-      setIsSaving(false);
-      return;
-    }
-
-    // Save to Cloud Storage
     try {
-        // Updated to pass the theme name as required by new storage logic
-        await updatePageWork(userId, page.theme, page.id, finalDataUrl);
-        setHasUnsavedChanges(false);
-        onSave(); // Notify parent
-    } catch (e) {
-        alert("Failed to save work to cloud");
-    } finally {
+      const finalDataUrl = tempCanvas.toDataURL('image/png');
+
+      if (download) {
+        const link = document.createElement('a');
+        link.download = `ColorCraft_${page.childName}_${page.theme}.png`;
+        link.href = finalDataUrl;
+        link.click();
         setIsSaving(false);
+        return;
+      }
+
+      await updatePageWork(userId, page.theme, page.id, finalDataUrl);
+      setHasUnsavedChanges(false);
+      onSave(); 
+    } catch (e) {
+      alert("Failed to save work. Security restriction or Network error.");
+      console.error(e);
+    } finally {
+      setIsSaving(false);
     }
 
     if (exitAfter) {
@@ -452,7 +447,7 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
   };
 
   const handleBack = () => {
-    if (hasUnsavedChanges) {
+    if (hasUnsavedChanges && !isTainted) {
       setShowExitDialog(true);
     } else {
       onBack();
@@ -462,18 +457,18 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
   // Auto-save Implementation
   useEffect(() => {
     autoSaveRef.current = () => {
-      if (hasUnsavedChanges && !isSaving) {
+      if (hasUnsavedChanges && !isSaving && !isTainted) {
         handleSave(false, false);
       }
     };
-  }); // Updates on every render to capture latest state closure
+  });
 
   useEffect(() => {
     const interval = setInterval(() => {
       if (autoSaveRef.current) {
         autoSaveRef.current();
       }
-    }, 120000); // 2 minutes
+    }, 120000); 
 
     return () => clearInterval(interval);
   }, []);
@@ -492,39 +487,46 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={handleUndo} 
-            disabled={history.length <= 1}
-            className="p-2 text-slate-600 disabled:opacity-30 hover:bg-slate-100 rounded-lg"
-            title="Undo"
-          >
-            <Undo size={20} />
-          </button>
-          <button 
-            onClick={handleRedo} 
-            disabled={redoStack.length === 0}
-            className="p-2 text-slate-600 disabled:opacity-30 hover:bg-slate-100 rounded-lg"
-            title="Redo"
-          >
-            <Redo size={20} />
-          </button>
-          <div className="h-6 w-px bg-slate-300 mx-1"></div>
-          <button 
-            onClick={() => handleSave(false)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full font-medium text-sm transition-colors"
-          >
-             {isSaving ? <span className="animate-spin">⌛</span> : <Save size={16} />}
-             <span>Save</span>
-          </button>
-          <button 
-            onClick={() => handleSave(true)}
-            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-full border border-indigo-200"
-            title="Download Image"
-          >
-             <Download size={20} />
-          </button>
-        </div>
+        {isTainted ? (
+           <div className="flex items-center gap-2 text-amber-600 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-200">
+             <Lock size={14} />
+             <span className="text-xs font-bold">View Only (Security Restricted)</span>
+           </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={handleUndo} 
+              disabled={history.length <= 1}
+              className="p-2 text-slate-600 disabled:opacity-30 hover:bg-slate-100 rounded-lg"
+              title="Undo"
+            >
+              <Undo size={20} />
+            </button>
+            <button 
+              onClick={handleRedo} 
+              disabled={redoStack.length === 0}
+              className="p-2 text-slate-600 disabled:opacity-30 hover:bg-slate-100 rounded-lg"
+              title="Redo"
+            >
+              <Redo size={20} />
+            </button>
+            <div className="h-6 w-px bg-slate-300 mx-1"></div>
+            <button 
+              onClick={() => handleSave(false)}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full font-medium text-sm transition-colors"
+            >
+               {isSaving ? <span className="animate-spin">⌛</span> : <Save size={16} />}
+               <span>Save</span>
+            </button>
+            <button 
+              onClick={() => handleSave(true)}
+              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-full border border-indigo-200"
+              title="Download Image"
+            >
+               <Download size={20} />
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 flex overflow-hidden">
@@ -535,7 +537,7 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
             <button
               onClick={() => { setTool('brush'); setBrushType('marker'); }}
               className={`p-3 rounded-xl flex flex-col items-center gap-1 transition-all ${tool === 'brush' && brushType === 'marker' ? 'bg-indigo-100 text-indigo-700 ring-2 ring-indigo-500 ring-offset-1' : 'text-slate-500 hover:bg-slate-50'}`}
-              title="Marker: Semi-transparent ink for coloring"
+              title="Marker"
             >
               <PenTool size={24} />
               <span className="text-[10px] font-bold">Marker</span>
@@ -544,7 +546,7 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
             <button
               onClick={() => { setTool('brush'); setBrushType('crayon'); }}
               className={`p-3 rounded-xl flex flex-col items-center gap-1 transition-all ${tool === 'brush' && brushType === 'crayon' ? 'bg-orange-100 text-orange-700 ring-2 ring-orange-500 ring-offset-1' : 'text-slate-500 hover:bg-slate-50'}`}
-              title="Crayon: Rough, textured wax look"
+              title="Crayon"
             >
               <Highlighter size={24} />
               <span className="text-[10px] font-bold">Crayon</span>
@@ -553,15 +555,15 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
             <button
               onClick={() => { setTool('brush'); setBrushType('glitter'); }}
               className={`p-3 rounded-xl flex flex-col items-center gap-1 transition-all ${tool === 'brush' && brushType === 'glitter' ? 'bg-purple-100 text-purple-700 ring-2 ring-purple-500 ring-offset-1' : 'text-slate-500 hover:bg-slate-50'}`}
-              title="Glitter: Sparkles and shines"
+              title="Glitter"
             >
               <Sparkles size={24} />
               <span className="text-[10px] font-bold">Glitter</span>
             </button>
 
-            {/* Blend Mode Selection */}
+            {/* Blend Mode */}
             <div className="w-full px-1">
-               <label className="text-[9px] font-bold text-slate-400 uppercase block text-center mb-1" title="How color interacts with the layer below">Blending</label>
+               <label className="text-[9px] font-bold text-slate-400 uppercase block text-center mb-1">Blending</label>
                <div className="relative">
                  <select 
                    value={blendMode}
@@ -580,7 +582,7 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
             <button
               onClick={() => setTool('eraser')}
               className={`p-3 rounded-xl flex flex-col items-center gap-1 transition-all ${tool === 'eraser' ? 'bg-pink-100 text-pink-700 ring-2 ring-pink-500 ring-offset-1' : 'text-slate-500 hover:bg-slate-50'}`}
-              title="Eraser: Remove mistakes"
+              title="Eraser"
             >
               <Eraser size={24} />
               <span className="text-[10px] font-bold">Eraser</span>
@@ -605,7 +607,7 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
           
            <div className="w-12 h-px bg-slate-200"></div>
 
-           {/* Zoom Controls */}
+           {/* Zoom */}
            <div className="flex flex-col gap-2">
               <button 
                 onClick={() => setZoomIndex(Math.min(ZOOM_LEVELS.length - 1, zoomIndex + 1))} 
@@ -676,13 +678,14 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
               onTouchEnd={stopDrawing}
               className="block"
             />
-            {/* The Outline Overlay (Interactions pass through to canvas) */}
+            {/* The Outline Overlay */}
+            {/* Note: If CORS failed, we load insecurely here so user can at least see it */}
             <img 
               src={page.originalUrl} 
               alt="outline" 
               className="absolute inset-0 w-full h-full pointer-events-none select-none"
               style={{ mixBlendMode: 'multiply' }}
-              crossOrigin="anonymous"
+              crossOrigin={isTainted ? undefined : "anonymous"} 
             />
           </div>
         </div>

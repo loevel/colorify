@@ -98,7 +98,9 @@ const App: React.FC = () => {
         setUser(prev => prev ? { 
           ...prev, 
           subscriptionTier: data.subscriptionTier || 'free',
-          subscriptionStatus: data.subscriptionStatus || 'active'
+          subscriptionStatus: data.subscriptionStatus || 'active',
+          accountType: data.accountType || 'personal',
+          children: data.children || []
         } : null);
       }
     } catch (e) {
@@ -356,7 +358,7 @@ const App: React.FC = () => {
             <div className="flex items-center gap-3">
               <div className="flex flex-col items-end hidden sm:flex">
                 <span className="text-sm font-bold text-slate-700">{user.name}</span>
-                <span className="text-xs text-slate-400 capitalize">{user.subscriptionTier}</span>
+                <span className="text-xs text-slate-400 capitalize">{user.accountType === 'family' ? 'Family Plan' : 'Personal'}</span>
               </div>
               <button 
                 onClick={handleLogout}
@@ -415,6 +417,7 @@ const App: React.FC = () => {
               isGenerating={isGenerating}
               needsApiKey={needsApiKey}
               onSelectKey={handleSelectKey}
+              user={user}
             />
 
             <ImageGallery 

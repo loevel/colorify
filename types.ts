@@ -24,12 +24,21 @@ export interface SavedPage {
 
 export type SubscriptionTier = 'free' | 'pro' | 'unlimited';
 
+export interface Child {
+  id: string;
+  name: string;
+}
+
+export type AccountType = 'personal' | 'family';
+
 export interface User {
   id: string;
   name: string;
   email: string;
   subscriptionTier: SubscriptionTier;
   subscriptionStatus: 'active' | 'canceled' | 'past_due';
+  accountType: AccountType;
+  children: Child[];
 }
 
 export interface PlanFeature {

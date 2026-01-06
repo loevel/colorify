@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
-import { Check, Star, Shield, Zap, Loader2, Crown } from 'lucide-react';
-import { User, SubscriptionTier } from '../types';
+import { Check, Star, Shield, Zap, Loader2, Crown, Users, User as UserIcon, Plus, Trash2 } from 'lucide-react';
+import { User, SubscriptionTier, AccountType } from '../types';
 import { PLANS, upgradeSubscription, cancelSubscription } from '../services/subscriptionService';
+import { addChildToUser, removeChildFromUser, updateAccountType } from '../services/userService';
 
 interface Props {
   user: User;
@@ -11,6 +12,9 @@ interface Props {
 
 const SubscriptionPage: React.FC<Props> = ({ user, onUpdateUser }) => {
   const [loadingTier, setLoadingTier] = useState<SubscriptionTier | null>(null);
+  const [newChildName, setNewChildName] = useState('');
+  const [isAddingChild, setIsAddingChild] = useState(false);
+  const [loadingAccountType, setLoadingAccountType] = useState(false);
 
   const handleSubscribe = async (tier: SubscriptionTier) => {
     if (tier === user.subscriptionTier) return;
@@ -23,13 +27,58 @@ const SubscriptionPage: React.FC<Props> = ({ user, onUpdateUser }) => {
         } else {
            await upgradeSubscription(user.id, tier);
         }
-        // Force a small delay to ensure Firestore propagates locally if using listeners
         await new Promise(r => setTimeout(r, 500));
-        onUpdateUser(); // Trigger parent to reload user profile
+        onUpdateUser();
       } catch (error) {
         alert("Failed to update subscription. Please try again.");
       } finally {
         setLoadingTier(null);
+      }
+    }
+  };
+
+  const handleSwitchAccountType = async (type: AccountType) => {
+     if (type === user.accountType) return;
+     setLoadingAccountType(true);
+     try {
+       await updateAccountType(user.id, type);
+       // Wait slightly to ensure propagation
+       await new Promise(r => setTimeout(r, 800));
+       onUpdateUser();
+     } catch (e) {
+       console.error("Failed to switch account type:", e);
+       alert("Could not update account type. Please try again.");
+     } finally {
+       setLoadingAccountType(false);
+     }
+  };
+
+  const handleAddChild = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newChildName.trim()) return;
+    setIsAddingChild(true);
+    try {
+      await addChildToUser(user.id, newChildName);
+      setNewChildName('');
+      onUpdateUser();
+    } catch (e) {
+      alert("Failed to add child.");
+    } finally {
+      setIsAddingChild(false);
+    }
+  };
+
+  const handleRemoveChild = async (childId: string, childName: string) => {
+    if (confirm(`Remove ${childName} from family?`)) {
+      try {
+        // Need to pass the full object to arrayRemove in firebase
+        const childObj = user.children.find(c => c.id === childId);
+        if (childObj) {
+           await removeChildFromUser(user.id, childObj);
+           onUpdateUser();
+        }
+      } catch (e) {
+        alert("Failed to remove child.");
       }
     }
   };
@@ -60,8 +109,80 @@ const SubscriptionPage: React.FC<Props> = ({ user, onUpdateUser }) => {
         </div>
       </div>
 
+      {/* Account Settings / Family Management */}
+      <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-8 mb-10">
+          <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+            <Users size={20} /> Account Settings
+          </h3>
+          
+          <div className="mb-8">
+             <label className="block text-sm font-bold text-slate-700 mb-3">Account Type</label>
+             <div className="flex gap-4">
+               <button
+                 onClick={() => handleSwitchAccountType('personal')}
+                 disabled={loadingAccountType}
+                 className={`flex-1 py-3 px-4 rounded-xl border flex items-center justify-center gap-2 transition-all ${user.accountType === 'personal' ? 'bg-indigo-50 border-indigo-500 text-indigo-700 font-bold' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+               >
+                 <UserIcon size={18} /> Personal
+               </button>
+               <button
+                 onClick={() => handleSwitchAccountType('family')}
+                 disabled={loadingAccountType}
+                 className={`flex-1 py-3 px-4 rounded-xl border flex items-center justify-center gap-2 transition-all ${user.accountType === 'family' ? 'bg-indigo-50 border-indigo-500 text-indigo-700 font-bold' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+               >
+                 <Users size={18} /> Family
+               </button>
+             </div>
+          </div>
+
+          {user.accountType === 'family' && (
+             <div className="animate-fade-in-up">
+                <label className="block text-sm font-bold text-slate-700 mb-3">Family Members</label>
+                
+                <div className="space-y-3 mb-4">
+                  {user.children.length === 0 && (
+                    <p className="text-slate-400 text-sm italic">No children added yet.</p>
+                  )}
+                  {user.children.map(child => (
+                    <div key={child.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs">
+                           {child.name.charAt(0)}
+                        </div>
+                        <span className="font-bold text-slate-700">{child.name}</span>
+                      </div>
+                      <button 
+                        onClick={() => handleRemoveChild(child.id, child.name)}
+                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                         <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <form onSubmit={handleAddChild} className="flex gap-2">
+                   <input
+                     type="text"
+                     value={newChildName}
+                     onChange={(e) => setNewChildName(e.target.value)}
+                     placeholder="Add child's name..."
+                     className="flex-1 px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500"
+                   />
+                   <button 
+                     type="submit"
+                     disabled={isAddingChild || !newChildName.trim()}
+                     className="bg-indigo-600 text-white px-4 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                   >
+                     {isAddingChild ? <Loader2 className="animate-spin" size={20} /> : <Plus size={20} />}
+                   </button>
+                </form>
+             </div>
+          )}
+      </div>
+
       <div className="text-center mb-10">
-        <h3 className="text-2xl font-bold text-slate-900 mb-2">Available Plans</h3>
+        <h3 className="text-2xl font-bold text-slate-900 mb-2">Subscription Plans</h3>
         <p className="text-slate-500">Choose the magic level that fits your family.</p>
       </div>
 

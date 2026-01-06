@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
-import { User } from '../types';
+import { User, AccountType } from '../types';
 import { login, register } from '../services/authService';
-import { LogIn, UserPlus, Sparkles, Palette, ArrowLeft } from 'lucide-react';
+import { LogIn, UserPlus, Sparkles, Palette, ArrowLeft, User as UserIcon, Users } from 'lucide-react';
 
 interface Props {
   onLogin: (user: User) => void;
@@ -15,6 +16,7 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
     email: '',
     password: ''
   });
+  const [accountType, setAccountType] = useState<AccountType>('personal');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -32,7 +34,7 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
         user = await login(formData.email, formData.password);
       } else {
         if (!formData.name) throw new Error("Name is required");
-        user = await register(formData.name, formData.email, formData.password);
+        user = await register(formData.name, formData.email, formData.password, accountType);
       }
       onLogin(user);
     } catch (err: any) {
@@ -71,17 +73,41 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Name</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={e => setFormData({...formData, name: e.target.value})}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
-                  placeholder="Your Name"
-                />
-              </div>
+              <>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Account Type</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setAccountType('personal')}
+                      className={`p-3 rounded-xl border flex flex-col items-center gap-2 transition-all ${accountType === 'personal' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                    >
+                      <UserIcon size={20} />
+                      <span className="text-sm font-bold">Personal</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAccountType('family')}
+                      className={`p-3 rounded-xl border flex flex-col items-center gap-2 transition-all ${accountType === 'family' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                    >
+                      <Users size={20} />
+                      <span className="text-sm font-bold">Family</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Your Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={e => setFormData({...formData, name: e.target.value})}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
+                    placeholder="Your Name"
+                  />
+                </div>
+              </>
             )}
             
             <div>
