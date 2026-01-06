@@ -137,8 +137,17 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
     setIsTainted(false);
 
     // Determines which URL to load
-    const urlToLoad = page.coloredUrl || page.originalUrl;
+    let base = page.coloredUrl || page.originalUrl;
     
+    // CACHE BUSTING:
+    // Append a unique timestamp to the URL.
+    // This forces the browser to bypass its cache and make a fresh network request.
+    // Why? The Gallery view might have cached this image without CORS headers.
+    // If we request it again for the Canvas, the browser might serve that "unsafe" cached version.
+    // Adding a timestamp ensures we get a fresh response with the correct CORS headers from Firebase.
+    const symbol = base.includes('?') ? '&' : '?';
+    const urlToLoad = `${base}${symbol}t=${Date.now()}`;
+
     // Function to load image with handling for CORS
     const setupCanvas = (img: HTMLImageElement, isTaintedMode: boolean) => {
       canvas.width = img.width;
@@ -401,7 +410,10 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
     // Fallback for line art overlay: try secure, if fail, try insecure but just warn
     const lineArtImg = new Image();
     lineArtImg.crossOrigin = "anonymous";
-    lineArtImg.src = page.originalUrl;
+    // Also use cache buster here for the save process
+    const base = page.originalUrl;
+    const symbol = base.includes('?') ? '&' : '?';
+    lineArtImg.src = `${base}${symbol}t=${Date.now()}`;
     
     await new Promise<void>((resolve) => {
       lineArtImg.onload = () => {
