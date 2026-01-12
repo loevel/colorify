@@ -2,7 +2,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { 
   ArrowLeft, Save, Undo, Redo, ZoomIn, ZoomOut, 
-  Eraser, Download, Highlighter, PenTool, Sparkles, Plus, X, AlertTriangle, Loader2, Lock, Palette, Maximize2
+  Eraser, Download, Highlighter, PenTool, Sparkles, Plus, X, AlertTriangle, Loader2, Lock, Palette, Maximize2, Minimize2
 } from 'lucide-react';
 import { SavedPage } from '../types';
 import { updatePageWork } from '../services/storageService';
@@ -27,6 +27,7 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
   // Canvas refs
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const lineArtRef = useRef<HTMLImageElement>(null); // Reference to the visible line art image
   const autoSaveRef = useRef<() => void>(() => {});
   
   // State
@@ -41,6 +42,7 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
   const [isCanvasReady, setIsCanvasReady] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [isTainted, setIsTainted] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   // UI State
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -76,6 +78,17 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
       console.error("Failed to load palettes", e);
     }
   }, [customPaletteKey, recentColorsKey]);
+
+  // Handle ESC key to exit full screen
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullScreen) {
+        setIsFullScreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullScreen]);
 
   // Save Custom Palette Helper
   const saveCustomPalette = (colors: string[]) => {
@@ -326,30 +339,47 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    // Create a temporary canvas for compositing
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = canvas.width;
     tempCanvas.height = canvas.height;
     const ctx = tempCanvas.getContext('2d');
     if (!ctx) return;
 
+    // 1. Fill white background
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+    
+    // 2. Draw the colored layer (User's work)
     ctx.drawImage(canvas, 0, 0);
 
-    const lineArtImg = new Image();
-    lineArtImg.crossOrigin = "anonymous";
-    const base = page.originalUrl;
-    const symbol = base.includes('?') ? '&' : '?';
-    lineArtImg.src = `${base}${symbol}v=${page.lastModified}`;
-    
-    await new Promise<void>((resolve) => {
-      lineArtImg.onload = () => {
+    // 3. Draw the Line Art on top (Multiply mode)
+    // We use the already loaded image ref to avoid fetching issues and race conditions
+    if (lineArtRef.current && lineArtRef.current.complete) {
+        ctx.save();
         ctx.globalCompositeOperation = 'multiply';
-        ctx.drawImage(lineArtImg, 0, 0, tempCanvas.width, tempCanvas.height);
-        resolve();
-      };
-      lineArtImg.onerror = () => resolve();
-    });
+        ctx.drawImage(lineArtRef.current, 0, 0, tempCanvas.width, tempCanvas.height);
+        ctx.restore();
+    } else {
+        // Fallback: If for some reason ref isn't ready (unlikely), try to load again
+        const lineArtImg = new Image();
+        lineArtImg.crossOrigin = "anonymous";
+        const base = page.originalUrl;
+        const symbol = base.includes('?') ? '&' : '?';
+        lineArtImg.src = `${base}${symbol}v=${page.lastModified}`;
+        
+        await new Promise<void>((resolve) => {
+          lineArtImg.onload = () => {
+            ctx.globalCompositeOperation = 'multiply';
+            ctx.drawImage(lineArtImg, 0, 0, tempCanvas.width, tempCanvas.height);
+            resolve();
+          };
+          lineArtImg.onerror = () => {
+             console.error("Failed to load line art for save fallback");
+             resolve();
+          };
+        });
+    }
 
     try {
       const finalDataUrl = tempCanvas.toDataURL('image/webp', 0.85);
@@ -365,6 +395,7 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
       setHasUnsavedChanges(false);
       onSave(); 
     } catch (e) {
+      console.error(e);
       alert("Failed to save work.");
     } finally {
       setIsSaving(false);
@@ -391,7 +422,7 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
   // --- UI Components ---
 
   const FloatingDock = () => (
-    <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-4 z-40 w-full px-4 max-w-2xl pointer-events-none">
+    <div className={`absolute bottom-6 left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-4 z-40 w-full px-4 max-w-2xl pointer-events-none transition-all duration-300 ${isFullScreen ? 'opacity-80 hover:opacity-100' : 'opacity-100'}`}>
       
       {/* Color Picker Popover */}
       {showColorPicker && (
@@ -487,47 +518,64 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
   return (
     <div className="fixed inset-0 z-50 bg-slate-50 flex flex-col h-screen overflow-hidden">
       {/* Top Floating Header */}
-      <header className="absolute top-0 left-0 right-0 z-40 p-4 pointer-events-none">
-         <div className="max-w-7xl mx-auto flex justify-between items-center">
-            {/* Back & Title */}
-            <div className="bg-white/80 backdrop-blur-md shadow-sm border border-white/50 rounded-full px-4 py-2 flex items-center gap-3 pointer-events-auto">
-               <button onClick={handleBack} className="p-1.5 hover:bg-slate-100 rounded-full text-slate-600 transition-colors">
-                 <ArrowLeft size={20} />
-               </button>
-               <div className="h-4 w-px bg-slate-200"></div>
-               <h2 className="font-bold text-slate-800 text-sm">{page.theme}</h2>
-            </div>
+      {!isFullScreen && (
+        <header className="absolute top-0 left-0 right-0 z-40 p-4 pointer-events-none">
+           <div className="max-w-7xl mx-auto flex justify-between items-center">
+              {/* Back & Title */}
+              <div className="bg-white/80 backdrop-blur-md shadow-sm border border-white/50 rounded-full px-4 py-2 flex items-center gap-3 pointer-events-auto">
+                 <button onClick={handleBack} className="p-1.5 hover:bg-slate-100 rounded-full text-slate-600 transition-colors">
+                   <ArrowLeft size={20} />
+                 </button>
+                 <div className="h-4 w-px bg-slate-200"></div>
+                 <h2 className="font-bold text-slate-800 text-sm">{page.theme}</h2>
+              </div>
 
-            {/* Actions */}
-            <div className="bg-white/80 backdrop-blur-md shadow-sm border border-white/50 rounded-full p-1 flex items-center gap-1 pointer-events-auto">
-               <button onClick={() => setZoomIndex(Math.max(0, zoomIndex - 1))} className="p-2 text-slate-500 hover:bg-slate-100 rounded-full">
-                  <ZoomOut size={18} />
-               </button>
-               <span className="text-xs font-bold text-slate-400 w-8 text-center">{Math.round(ZOOM_LEVELS[zoomIndex] * 100)}%</span>
-               <button onClick={() => setZoomIndex(Math.min(ZOOM_LEVELS.length - 1, zoomIndex + 1))} className="p-2 text-slate-500 hover:bg-slate-100 rounded-full">
-                  <ZoomIn size={18} />
-               </button>
-               <div className="h-4 w-px bg-slate-200 mx-1"></div>
-               {isTainted ? (
-                 <div className="px-3 flex items-center gap-1 text-amber-600 text-xs font-bold"><Lock size={12}/> View Only</div>
-               ) : (
-                 <>
-                   <button onClick={() => handleSave(false)} className="px-4 py-2 bg-slate-900 text-white rounded-full font-bold text-sm hover:bg-slate-800 transition-colors flex items-center gap-2">
-                      {isSaving ? <Loader2 size={16} className="animate-spin" /> : "Save"}
-                   </button>
-                   <button onClick={() => handleSave(true)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-full" title="Download">
-                      <Download size={20} />
-                   </button>
-                 </>
-               )}
-            </div>
-         </div>
-      </header>
+              {/* Actions */}
+              <div className="bg-white/80 backdrop-blur-md shadow-sm border border-white/50 rounded-full p-1 flex items-center gap-1 pointer-events-auto">
+                 <button onClick={() => setZoomIndex(Math.max(0, zoomIndex - 1))} className="p-2 text-slate-500 hover:bg-slate-100 rounded-full">
+                    <ZoomOut size={18} />
+                 </button>
+                 <span className="text-xs font-bold text-slate-400 w-8 text-center">{Math.round(ZOOM_LEVELS[zoomIndex] * 100)}%</span>
+                 <button onClick={() => setZoomIndex(Math.min(ZOOM_LEVELS.length - 1, zoomIndex + 1))} className="p-2 text-slate-500 hover:bg-slate-100 rounded-full">
+                    <ZoomIn size={18} />
+                 </button>
+                 <div className="h-4 w-px bg-slate-200 mx-1"></div>
+                 <button onClick={() => setIsFullScreen(true)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-full" title="Full Screen">
+                    <Maximize2 size={18} />
+                 </button>
+                 <div className="h-4 w-px bg-slate-200 mx-1"></div>
+                 {isTainted ? (
+                   <div className="px-3 flex items-center gap-1 text-amber-600 text-xs font-bold"><Lock size={12}/> View Only</div>
+                 ) : (
+                   <>
+                     <button onClick={() => handleSave(false)} className="px-4 py-2 bg-slate-900 text-white rounded-full font-bold text-sm hover:bg-slate-800 transition-colors flex items-center gap-2">
+                        {isSaving ? <Loader2 size={16} className="animate-spin" /> : "Save"}
+                     </button>
+                     <button onClick={() => handleSave(true)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-full" title="Download">
+                        <Download size={20} />
+                     </button>
+                   </>
+                 )}
+              </div>
+           </div>
+        </header>
+      )}
+
+      {/* Exit Full Screen Button */}
+      {isFullScreen && (
+        <button 
+          onClick={() => setIsFullScreen(false)}
+          className="absolute top-4 right-4 z-50 bg-white/80 backdrop-blur shadow-sm border border-slate-200 p-2 rounded-full text-slate-600 hover:bg-white hover:text-slate-900 transition-colors"
+          title="Exit Full Screen"
+        >
+          <Minimize2 size={24} />
+        </button>
+      )}
 
       {/* Main Canvas Area */}
       <div 
         ref={containerRef}
-        className="flex-1 overflow-auto flex items-center justify-center p-8 relative cursor-crosshair touch-none bg-slate-50"
+        className={`flex-1 overflow-auto flex items-center justify-center relative cursor-crosshair touch-none bg-slate-50 transition-all duration-500 ${isFullScreen ? 'p-0' : 'p-8'}`}
       >
         {!isCanvasReady && !loadError && (
            <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-slate-50/80 backdrop-blur-sm">
@@ -564,6 +612,7 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
             className="block"
           />
           <img 
+            ref={lineArtRef}
             src={page.originalUrl} 
             alt="outline" 
             className="absolute inset-0 w-full h-full pointer-events-none select-none"
