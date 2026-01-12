@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, Suspense, lazy } from 'react';
-import { GeneratorConfig, GeneratedImage, SavedPage, ViewMode, User } from './types';
+import { GeneratorConfig, GeneratedImage, SavedPage, ViewMode, User, Child } from './types';
 import GeneratorForm from './components/GeneratorForm';
 import ImageGallery from './components/ImageGallery';
 import ChatBot from './components/ChatBot';
+import ProfileSelector from './components/ProfileSelector';
 // Lazy load components to save initial bandwidth
 const ColoringStudio = lazy(() => import('./components/ColoringStudio'));
 const Library = lazy(() => import('./components/Library'));
@@ -20,7 +21,7 @@ import { generateScenes, generateColoringPage } from './services/geminiService';
 import { createColoringBookPDF, printColoringBookPDF } from './services/pdfService';
 import { saveToLibrary, getLibrary } from './services/storageService';
 import { subscribeToAuthChanges, logout } from './services/authService';
-import { Pencil, Grid, PlusCircle, LogOut, Loader2, Crown, Shield } from 'lucide-react';
+import { Pencil, Grid, PlusCircle, LogOut, Loader2, Crown, Shield, Users } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from './services/firebaseConfig';
 
@@ -29,6 +30,9 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
+
+  // Profile State (For Family Accounts)
+  const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
 
   // Navigation State
   const [view, setView] = useState<ViewMode>('generator');
@@ -66,18 +70,38 @@ const App: React.FC = () => {
     const unsubscribe = subscribeToAuthChanges((currentUser) => {
       setUser(currentUser);
       setAuthLoading(false);
+      
+      // Reset profile on login change
+      setActiveProfileId(null);
     });
     return () => unsubscribe();
   }, []);
 
-  // Load Library when user logs in
+  // Update Config when Profile Changes
+  useEffect(() => {
+    if (user && activeProfileId) {
+      const child = user.children.find(c => c.id === activeProfileId);
+      if (child) {
+        setConfig(prev => ({ ...prev, childName: child.name }));
+      }
+    } else if (user && user.accountType === 'personal') {
+      // For personal accounts, auto-fill user name if wanted, or leave blank
+      setConfig(prev => ({ ...prev, childName: user.name }));
+    }
+  }, [activeProfileId, user]);
+
+  // Load Library when user or profile changes
   useEffect(() => {
     if (user) {
+      // If family account and no profile selected, don't load library yet
+      if (user.accountType === 'family' && !activeProfileId && view !== 'subscription') {
+         return; 
+      }
       loadLibrary();
     } else {
       setLibraryPages([]);
     }
-  }, [user]);
+  }, [user, activeProfileId]);
 
   const loadLibrary = async () => {
     if (user) {
@@ -122,11 +146,18 @@ const App: React.FC = () => {
   const handleLogout = async () => {
     await logout();
     setUser(null);
-    setShowAuth(false); // Reset to landing page on logout
+    setActiveProfileId(null);
+    setShowAuth(false); 
     setImages([]);
     setLibraryPages([]);
     setConfig({ childName: '', theme: '', imageSize: '1K' });
-    setView('generator'); // Reset view
+    setView('generator'); 
+  };
+
+  const handleProfileSelection = (profileId: string) => {
+    setActiveProfileId(profileId);
+    // Automatically go to generator when entering a profile
+    setView('generator');
   };
 
   const handleGenerate = async () => {
@@ -135,12 +166,6 @@ const App: React.FC = () => {
     if (!hasKey) return;
 
     if (!config.theme || !config.childName) return;
-
-    // Basic Subscription Check (In a real app, strict limits would be backend enforced)
-    if (user.subscriptionTier === 'free' && images.length > 0 && view === 'generator') {
-       // Just a soft UX hint, not a hard block for this demo
-       console.log("Free tier user generating images");
-    }
 
     setIsGenerating(true);
     setImages([]);
@@ -161,15 +186,12 @@ const App: React.FC = () => {
       // 2. Generate Images in parallel
       const imagePromises = sceneConcepts.map(async (concept, index) => {
         try {
-          // If user is Pro/Unlimited, they can request higher quality. 
-          // If Free, force 1K or handle in generateColoringPage logic.
           const url = await generateColoringPage(concept.description, config.imageSize);
           
           setImages(prev => prev.map(img => 
              img.prompt === concept.description ? { ...img, url, loading: false } : img
           ));
           
-          // Auto-save to Firebase
           await saveToLibrary(user.id, config.childName, config.theme, {
             id: placeholders[index].id,
             url,
@@ -178,7 +200,6 @@ const App: React.FC = () => {
             loading: false
           });
           
-          // Refresh library in background (don't await strictly)
           loadLibrary(); 
 
           return url;
@@ -249,13 +270,10 @@ const App: React.FC = () => {
 
   const handleColorGeneratedImage = async (img: GeneratedImage) => {
     if (!user) return;
-    setProcessingId(img.id); // Show specific loading on the button
+    setProcessingId(img.id); 
     try {
         const saved = await saveToLibrary(user.id, config.childName, config.theme, img);
-        
-        // Use the base64 url from 'img' to ensure it loads instantly in studio and bypasses CORS/Network issues for this session
         const pageWithLocalUrl: SavedPage = { ...saved, originalUrl: img.url };
-        
         await loadLibrary();
         handleOpenStudio(pageWithLocalUrl);
     } catch(e) {
@@ -266,12 +284,10 @@ const App: React.FC = () => {
     }
   };
 
-  // Navigation Helper
   const navigateBack = () => {
     if (user) {
       setView('generator');
     } else {
-      // If logged out, essentially "reload" LandingPage state by falling through
       setView('generator'); 
     }
   };
@@ -286,7 +302,7 @@ const App: React.FC = () => {
     return <FullPageLoader />;
   }
 
-  // Public Routes (Accessible regardless of Auth, but typically triggered from footer)
+  // Public Routes
   if (view === 'privacy') return <Suspense fallback={<FullPageLoader />}><PrivacyPage onBack={navigateBack} /></Suspense>;
   if (view === 'terms') return <Suspense fallback={<FullPageLoader />}><TermsPage onBack={navigateBack} /></Suspense>;
   if (view === 'contact') return <Suspense fallback={<FullPageLoader />}><ContactPage onBack={navigateBack} /></Suspense>;
@@ -303,6 +319,24 @@ const App: React.FC = () => {
       );
     }
     return <LandingPage onGetStarted={() => setShowAuth(true)} onNavigate={setView} />;
+  }
+
+  // PROFILE SELECTION (Family Accounts Only)
+  if (user.accountType === 'family' && !activeProfileId && view !== 'subscription' && view !== 'admin') {
+    return (
+       <ProfileSelector 
+          user={user} 
+          onSelectProfile={handleProfileSelection} 
+          onManageProfiles={() => setView('subscription')} 
+       />
+    );
+  }
+
+  // Determine current display name for header
+  let activeProfileName = user.name;
+  if (user.accountType === 'family' && activeProfileId) {
+     const child = user.children.find(c => c.id === activeProfileId);
+     if (child) activeProfileName = child.name;
   }
 
   // Render Studio Full Screen
@@ -327,7 +361,6 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <div>
-          {/* Simple header for admin to get back */}
           <div className="bg-slate-900 text-slate-400 p-2 text-xs flex justify-between px-6">
              <span>Admin Mode Active</span>
              <button onClick={() => setView('generator')} className="hover:text-white">Exit to App</button>
@@ -391,17 +424,38 @@ const App: React.FC = () => {
                 </button>
               )}
               
-              <div className="flex flex-col items-end hidden sm:flex">
-                <span className="text-sm font-bold text-slate-700">{user.name}</span>
-                <span className="text-xs text-slate-400 capitalize">{user.accountType === 'family' ? 'Family Plan' : 'Personal'}</span>
+              <div className="flex items-center gap-3">
+                 {/* Profile Switcher for Family Accounts */}
+                 {user.accountType === 'family' && (
+                   <button 
+                     onClick={() => setActiveProfileId(null)} 
+                     className="flex items-center gap-2 pl-3 pr-1 py-1 bg-indigo-50 hover:bg-indigo-100 rounded-full transition-colors border border-indigo-100 group"
+                   >
+                     <div className="flex flex-col items-end">
+                       <span className="text-sm font-bold text-indigo-900 leading-tight">{activeProfileName}</span>
+                       <span className="text-[10px] text-indigo-500 font-medium">Switch Profile</span>
+                     </div>
+                     <div className="w-8 h-8 rounded-full bg-indigo-200 text-indigo-600 flex items-center justify-center">
+                        <Users size={16} />
+                     </div>
+                   </button>
+                 )}
+
+                 {user.accountType === 'personal' && (
+                    <div className="flex flex-col items-end hidden sm:flex">
+                      <span className="text-sm font-bold text-slate-700">{user.name}</span>
+                      <span className="text-xs text-slate-400 capitalize">Personal</span>
+                    </div>
+                 )}
+                 
+                 <button 
+                    onClick={handleLogout}
+                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                    title="Log Out"
+                  >
+                    <LogOut size={20} />
+                  </button>
               </div>
-              <button 
-                onClick={handleLogout}
-                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
-                title="Log Out"
-              >
-                <LogOut size={20} />
-              </button>
             </div>
           </div>
         </div>
@@ -438,10 +492,10 @@ const App: React.FC = () => {
           <>
             <div className="text-center mb-12">
               <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-4 comic-font">
-                Make Your Own Coloring Book!
+                Hi, <span className="text-indigo-600">{activeProfileName}</span>!
               </h1>
               <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-                Turn any idea into a printable coloring adventure. Just type a theme, and our magic AI will draw it for you.
+                What do you want to color today?
               </p>
             </div>
 
@@ -453,6 +507,7 @@ const App: React.FC = () => {
               needsApiKey={needsApiKey}
               onSelectKey={handleSelectKey}
               user={user}
+              activeProfileId={activeProfileId}
             />
 
             <ImageGallery 
@@ -487,6 +542,7 @@ const App: React.FC = () => {
                     onOpenStudio={handleOpenStudio}
                     onRefresh={loadLibrary}
                     userId={user.id}
+                    activeProfileId={activeProfileId}
                   />
                 </Suspense>
             )}

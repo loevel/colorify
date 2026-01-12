@@ -11,7 +11,7 @@ export const PLANS: SubscriptionPlan[] = [
     familyPrice: 0,
     description: 'Perfect for trying out the magic.',
     features: [
-      { text: '3 Color Pages per Day', included: true },
+      { text: '1 Color Page per Day', included: true }, 
       { text: 'Standard HD Quality', included: true },
       { text: 'Digital Coloring Studio', included: true },
       { text: 'Public Gallery Access', included: true },
@@ -23,11 +23,11 @@ export const PLANS: SubscriptionPlan[] = [
     id: 'pro',
     name: 'Creative Pro',
     price: 999, // $9.99
-    familyPrice: 1499, // $14.99
+    familyPrice: 2999, // Increased to $29.99 to ensure margin safety with 4 users
     description: 'For the daily coloring enthusiast.',
     highlight: true,
     features: [
-      { text: '50 Color Pages per Day', included: true },
+      { text: '12 Color Pages per Day', included: true }, // Adjusted to 12 (Safe cost ceiling ~ $14/mo)
       { text: '2K High Resolution', included: true },
       { text: 'Digital Coloring Studio', included: true },
       { text: 'Private Gallery Access', included: true },
@@ -37,12 +37,12 @@ export const PLANS: SubscriptionPlan[] = [
   },
   {
     id: 'unlimited',
-    name: 'Unlimited Magic',
-    price: 1999, // $19.99
-    familyPrice: 2999, // $29.99
-    description: 'Unleash infinite creativity.',
+    name: 'Ultimate Magic',
+    price: 2999, // Increased to $29.99 to cover heavy single-user usage
+    familyPrice: 5999, // Increased to $59.99. Essential buffer against 4 kids generating 30 imgs/day.
+    description: 'Maximum creativity for super fans.',
     features: [
-      { text: 'Unlimited Generations', included: true },
+      { text: '30 Color Pages per Day', included: true }, // Capped at 30 (Cost ceiling ~ $36/mo)
       { text: '4K Ultra-Resolution', included: true },
       { text: 'Digital Coloring Studio', included: true },
       { text: 'Private Gallery Access', included: true },

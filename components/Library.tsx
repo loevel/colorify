@@ -13,9 +13,10 @@ interface Props {
   onOpenStudio: (page: SavedPage) => void;
   onRefresh: () => void;
   userId: string;
+  activeProfileId?: string | null;
 }
 
-const Library: React.FC<Props> = ({ pages, onOpenStudio, onRefresh, userId }) => {
+const Library: React.FC<Props> = ({ pages, onOpenStudio, onRefresh, userId, activeProfileId }) => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [user, setUser] = useState<AppUser | null>(null);
   const [selectedChildFilter, setSelectedChildFilter] = useState<string>('all');
@@ -26,14 +27,24 @@ const Library: React.FC<Props> = ({ pages, onOpenStudio, onRefresh, userId }) =>
        try {
          const snap = await getDoc(doc(db, "users", userId));
          if (snap.exists()) {
-            setUser({ id: snap.id, ...snap.data() } as AppUser);
+            const userData = { id: snap.id, ...snap.data() } as AppUser;
+            setUser(userData);
+            
+            // If activeProfileId is passed (we are in a specific child's space), 
+            // set the filter to that child's name automatically.
+            if (activeProfileId && userData.children) {
+               const activeChild = userData.children.find(c => c.id === activeProfileId);
+               if (activeChild) {
+                 setSelectedChildFilter(activeChild.name);
+               }
+            }
          }
        } catch (e) {
          console.error(e);
        }
     };
     fetchUser();
-  }, [userId]);
+  }, [userId, activeProfileId]);
 
   const handleDelete = async (page: SavedPage, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -67,6 +78,10 @@ const Library: React.FC<Props> = ({ pages, onOpenStudio, onRefresh, userId }) =>
   // Get unique names from pages just in case user deleted a child profile but kept drawings
   const childrenWithDrawings = Array.from(new Set(pages.map(p => p.childName)));
 
+  // If we are in a specific child space, we don't show the filter UI or empty state for "all",
+  // we just show their specific empty state.
+  const isChildSpace = !!activeProfileId;
+
   if (pages.length === 0) {
     return (
       <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-300">
@@ -81,8 +96,8 @@ const Library: React.FC<Props> = ({ pages, onOpenStudio, onRefresh, userId }) =>
 
   return (
     <div className="animate-fade-in-up">
-      {/* Family Filter Bar */}
-      {user && user.accountType === 'family' && childrenWithDrawings.length > 0 && (
+      {/* Family Filter Bar - Only show if NOT in a specific child space */}
+      {!isChildSpace && user && user.accountType === 'family' && childrenWithDrawings.length > 0 && (
          <div className="mb-8 flex items-center gap-3 overflow-x-auto pb-2">
             <div className="flex items-center gap-2 text-slate-400 text-sm font-bold mr-2">
                <Filter size={16} /> Filter:
@@ -115,10 +130,12 @@ const Library: React.FC<Props> = ({ pages, onOpenStudio, onRefresh, userId }) =>
          </div>
       )}
 
-      {filteredPages.length === 0 && selectedChildFilter !== 'all' ? (
+      {filteredPages.length === 0 ? (
          <div className="text-center py-20 bg-slate-50 rounded-3xl">
             <p className="text-slate-500">No drawings found for {selectedChildFilter}.</p>
-            <button onClick={() => setSelectedChildFilter('all')} className="text-indigo-600 font-bold text-sm mt-2 hover:underline">View All</button>
+            {!isChildSpace && (
+               <button onClick={() => setSelectedChildFilter('all')} className="text-indigo-600 font-bold text-sm mt-2 hover:underline">View All</button>
+            )}
          </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

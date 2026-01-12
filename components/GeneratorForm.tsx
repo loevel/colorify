@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Sparkles, Palette, Users } from 'lucide-react';
+import { Sparkles, Palette } from 'lucide-react';
 import { GeneratorConfig, ImageSize, User } from '../types';
 
 interface Props {
@@ -11,6 +11,7 @@ interface Props {
   needsApiKey: boolean;
   onSelectKey: () => void;
   user: User | null;
+  activeProfileId?: string | null;
 }
 
 const POPULAR_THEMES = [
@@ -22,7 +23,7 @@ const POPULAR_THEMES = [
   "Race Cars on Mars"
 ];
 
-const GeneratorForm: React.FC<Props> = ({ config, setConfig, onGenerate, isGenerating, needsApiKey, onSelectKey, user }) => {
+const GeneratorForm: React.FC<Props> = ({ config, setConfig, onGenerate, isGenerating, needsApiKey, onSelectKey, user, activeProfileId }) => {
   const handleChange = (field: keyof GeneratorConfig, value: string) => {
     setConfig(prev => ({ ...prev, [field]: value }));
   };
@@ -39,33 +40,36 @@ const GeneratorForm: React.FC<Props> = ({ config, setConfig, onGenerate, isGener
       </div>
 
       <div className="space-y-6">
-        <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-2">Child's Name</label>
-          
-          {/* Family Account Child Selector */}
-          {user && user.accountType === 'family' && user.children.length > 0 && (
-             <div className="flex flex-wrap gap-2 mb-3">
-               {user.children.map(child => (
-                 <button
-                   key={child.id}
-                   onClick={() => handleChange('childName', child.name)}
-                   className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${config.childName === child.name ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-indigo-300'}`}
-                 >
-                    {child.name}
-                 </button>
-               ))}
-               <div className="h-6 w-px bg-slate-200 mx-1"></div>
-             </div>
-          )}
+        {/* Only show child selection/input if NOT in a specific child profile */}
+        {!activeProfileId && (
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Child's Name</label>
+            
+            {/* Family Account Child Selector for Admin Mode */}
+            {user && user.accountType === 'family' && user.children.length > 0 && (
+               <div className="flex flex-wrap gap-2 mb-3">
+                 {user.children.map(child => (
+                   <button
+                     key={child.id}
+                     onClick={() => handleChange('childName', child.name)}
+                     className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${config.childName === child.name ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-indigo-300'}`}
+                   >
+                      {child.name}
+                   </button>
+                 ))}
+                 <div className="h-6 w-px bg-slate-200 mx-1"></div>
+               </div>
+            )}
 
-          <input
-            type="text"
-            value={config.childName}
-            onChange={(e) => handleChange('childName', e.target.value)}
-            placeholder="e.g. Leo"
-            className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 transition-all outline-none"
-          />
-        </div>
+            <input
+              type="text"
+              value={config.childName}
+              onChange={(e) => handleChange('childName', e.target.value)}
+              placeholder="e.g. Leo"
+              className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 transition-all outline-none"
+            />
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-2">Theme</label>

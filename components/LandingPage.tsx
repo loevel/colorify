@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Sparkles, Printer, Palette, Zap, Shield, ArrowRight, Heart, Star, Check, ChevronDown, ChevronUp, PlayCircle, Search, Users } from 'lucide-react';
+import { Sparkles, Printer, Palette, Zap, Shield, ArrowRight, Heart, Star, Check, ChevronDown, ChevronUp, PlayCircle, Search, Users, Wand2 } from 'lucide-react';
 import { PLANS } from '../services/subscriptionService';
 import { ViewMode } from '../types';
 
@@ -43,8 +43,24 @@ const LIVE_PROMPTS = [
   "Steampunk owl wearing glasses"
 ];
 
+const SHOWCASE_ITEMS = [
+  { id: 1, category: 'Animals', prompt: "A wise owl with intricate feathers", url: "https://images.unsplash.com/photo-1572295283995-1f6305602434?q=80&w=600&auto=format&fit=crop", artist: "Maya, 6" },
+  { id: 2, category: 'Fantasy', prompt: "Sketch of a medieval castle on a hill", url: "https://images.unsplash.com/photo-1568819266136-1db83df3273c?q=80&w=600&auto=format&fit=crop", artist: "Leo, 8" },
+  { id: 3, category: 'Space', prompt: "Doodle of planets and stars in space", url: "https://images.unsplash.com/photo-1614728853970-327c59324a34?q=80&w=600&auto=format&fit=crop", artist: "Sam, 5" },
+  { id: 4, category: 'Animals', prompt: "Detailed lion head illustration", url: "https://images.unsplash.com/photo-1568291617477-84d4b3f87b32?q=80&w=600&auto=format&fit=crop", artist: "Elena, 10" },
+  { id: 5, category: 'Vehicles', prompt: "Vintage car blueprint sketch", url: "https://images.unsplash.com/photo-1583265893450-482c3d52c6f1?q=80&w=600&auto=format&fit=crop", artist: "Max, 7" },
+  { id: 6, category: 'Fantasy', prompt: "Dinosaur skeleton in a museum", url: "https://images.unsplash.com/photo-1596138252452-463802fb8dd3?q=80&w=600&auto=format&fit=crop", artist: "Zoe, 6" },
+  { id: 7, category: 'Animals', prompt: "Butterfly on a flower line art", url: "https://images.unsplash.com/photo-1554189097-ffe88e998a2b?q=80&w=600&auto=format&fit=crop", artist: "Ben, 4" },
+  { id: 8, category: 'Fantasy', prompt: "Magical fairy house in a mushroom", url: "https://images.unsplash.com/photo-1605806616949-1e87b487bc2a?q=80&w=600&auto=format&fit=crop", artist: "Lucas, 9" },
+];
+
 const LandingPage: React.FC<Props> = ({ onGetStarted, onNavigate }) => {
   const [pricingMode, setPricingMode] = useState<'personal' | 'family'>('personal');
+  const [activeCategory, setActiveCategory] = useState('All');
+
+  const filteredShowcase = activeCategory === 'All' 
+    ? SHOWCASE_ITEMS 
+    : SHOWCASE_ITEMS.filter(item => item.category === activeCategory);
 
   return (
     <div className="min-h-screen bg-white font-sans selection:bg-indigo-100 selection:text-indigo-900">
@@ -196,56 +212,67 @@ const LandingPage: React.FC<Props> = ({ onGetStarted, onNavigate }) => {
         </div>
       </div>
 
-      {/* Image Showcase Validation */}
+      {/* UPDATED: Image Showcase Validation */}
       <div id="showcase" className="py-24 bg-slate-50 relative overflow-hidden">
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-16">
+            <div className="text-center mb-10">
                <span className="text-indigo-600 font-bold tracking-wider uppercase text-sm">Visual Validation</span>
                <h2 className="text-4xl font-bold text-slate-900 mt-2 mb-6 comic-font">Endless Possibilities</h2>
-               <p className="text-slate-600 max-w-2xl mx-auto text-lg">
-                 From space adventures to underwater castles, see what our AI can create in seconds. High-resolution, crisp lines, ready to print.
+               <p className="text-slate-600 max-w-2xl mx-auto text-lg mb-8">
+                 From space adventures to underwater castles, see what our AI can create in seconds.
                </p>
+
+               {/* Category Filters */}
+               <div className="flex flex-wrap justify-center gap-3 mb-12">
+                 {['All', 'Animals', 'Space', 'Fantasy', 'Vehicles'].map((cat) => (
+                   <button
+                     key={cat}
+                     onClick={() => setActiveCategory(cat)}
+                     className={`px-6 py-2 rounded-full text-sm font-bold transition-all ${
+                       activeCategory === cat 
+                         ? 'bg-slate-900 text-white shadow-md transform scale-105' 
+                         : 'bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-900 border border-slate-200'
+                     }`}
+                   >
+                     {cat}
+                   </button>
+                 ))}
+               </div>
             </div>
 
-            {/* Gallery Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-               <div className="space-y-4 md:space-y-6">
-                  <div className="rounded-3xl overflow-hidden shadow-lg border-4 border-white transform hover:scale-[1.02] transition-transform duration-300">
-                     <img src="https://images.unsplash.com/photo-1544383835-bda2bc66a55d?q=80&w=400&auto=format&fit=crop" alt="Coloring 1" className="w-full h-auto object-cover grayscale hover:grayscale-0 transition-all duration-500" />
-                  </div>
-                  <div className="rounded-3xl overflow-hidden shadow-lg border-4 border-white transform hover:scale-[1.02] transition-transform duration-300">
-                     <img src="https://images.unsplash.com/photo-1629196914375-f7e48f477b6d?q=80&w=400&auto=format&fit=crop" alt="Coloring 2" className="w-full h-auto object-cover" />
-                  </div>
-               </div>
-               <div className="space-y-4 md:space-y-6 md:mt-12">
-                  <div className="rounded-3xl overflow-hidden shadow-lg border-4 border-white transform hover:scale-[1.02] transition-transform duration-300">
-                     <img src="https://images.unsplash.com/photo-1513364776144-60967b0f800f?q=80&w=400&auto=format&fit=crop" alt="Coloring 3" className="w-full h-auto object-cover" />
-                  </div>
-                  <div className="rounded-3xl overflow-hidden shadow-lg border-4 border-white transform hover:scale-[1.02] transition-transform duration-300">
-                     <img src="https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?q=80&w=400&auto=format&fit=crop" alt="Coloring 4" className="w-full h-auto object-cover grayscale hover:grayscale-0 transition-all duration-500" />
-                  </div>
-               </div>
-               <div className="space-y-4 md:space-y-6">
-                  <div className="rounded-3xl overflow-hidden shadow-lg border-4 border-white transform hover:scale-[1.02] transition-transform duration-300">
-                     <img src="https://images.unsplash.com/photo-1515965885000-31db4b4b054c?q=80&w=400&auto=format&fit=crop" alt="Coloring 5" className="w-full h-auto object-cover grayscale hover:grayscale-0 transition-all duration-500" />
-                  </div>
-                  <div className="rounded-3xl overflow-hidden shadow-lg border-4 border-white transform hover:scale-[1.02] transition-transform duration-300">
-                     <img src="https://images.unsplash.com/photo-1618331835717-801e976710b2?q=80&w=400&auto=format&fit=crop" alt="Coloring 6" className="w-full h-auto object-cover" />
-                  </div>
-               </div>
-               <div className="space-y-4 md:space-y-6 md:mt-12">
-                  <div className="rounded-3xl overflow-hidden shadow-lg border-4 border-white transform hover:scale-[1.02] transition-transform duration-300">
-                     <img src="https://images.unsplash.com/photo-1543536448-d209d2d13a1c?q=80&w=400&auto=format&fit=crop" alt="Coloring 7" className="w-full h-auto object-cover" />
-                  </div>
-                  <div className="rounded-3xl overflow-hidden shadow-lg border-4 border-white transform hover:scale-[1.02] transition-transform duration-300">
-                     <img src="https://images.unsplash.com/photo-1596464716127-f9a0639b936f?q=80&w=400&auto=format&fit=crop" alt="Coloring 8" className="w-full h-auto object-cover grayscale hover:grayscale-0 transition-all duration-500" />
-                  </div>
-               </div>
+            {/* Gallery Grid - Masonry style feel */}
+            <div className="columns-2 md:columns-4 gap-4 space-y-4">
+               {filteredShowcase.map((item) => (
+                 <div key={item.id} className="break-inside-avoid relative group rounded-2xl overflow-hidden cursor-pointer shadow-md bg-white border border-slate-100">
+                    <div className="relative overflow-hidden">
+                       <img 
+                          src={item.url} 
+                          alt={item.prompt} 
+                          className="w-full h-auto object-cover transition-all duration-700 group-hover:scale-110"
+                          style={{ filter: 'grayscale(100%) contrast(125%) brightness(110%)' }}
+                       />
+                       {/* Overlay on Hover */}
+                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
+                          <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                             <div className="flex items-center gap-2 text-indigo-300 text-xs font-bold uppercase tracking-wider mb-1">
+                                <Wand2 size={12} /> AI Prompt
+                             </div>
+                             <p className="text-white text-sm font-medium leading-snug">"{item.prompt}"</p>
+                             <div className="mt-2 flex items-center gap-2">
+                                <span className="bg-white/20 backdrop-blur-md px-2 py-1 rounded text-[10px] text-white font-bold">
+                                  Created by {item.artist}
+                                </span>
+                             </div>
+                          </div>
+                       </div>
+                    </div>
+                 </div>
+               ))}
             </div>
             
             <div className="text-center mt-12">
-               <button onClick={onGetStarted} className="inline-flex items-center gap-2 text-indigo-600 font-bold hover:text-indigo-700 transition-colors border-b-2 border-indigo-200 hover:border-indigo-600 pb-1">
-                  View Full Gallery <ArrowRight size={16} />
+               <button onClick={onGetStarted} className="inline-flex items-center gap-2 text-indigo-600 font-bold hover:text-indigo-700 transition-colors border-b-2 border-indigo-200 hover:border-indigo-600 pb-1 group">
+                  Create Your Own <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                </button>
             </div>
          </div>

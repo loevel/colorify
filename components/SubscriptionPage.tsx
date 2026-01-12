@@ -1,9 +1,9 @@
 
 import React, { useState } from 'react';
-import { Check, Shield, Loader2, Users, User as UserIcon, Plus, Trash2 } from 'lucide-react';
+import { Check, Shield, Loader2, Users, User as UserIcon, Plus, Trash2, AlertCircle, Pencil, X, Save } from 'lucide-react';
 import { User, SubscriptionTier, AccountType } from '../types';
 import { PLANS, upgradeSubscription, cancelSubscription } from '../services/subscriptionService';
-import { addChildToUser, removeChildFromUser, updateAccountType } from '../services/userService';
+import { addChildToUser, removeChildFromUser, updateAccountType, updateChild } from '../services/userService';
 
 interface Props {
   user: User;
@@ -12,12 +12,21 @@ interface Props {
 
 const SubscriptionPage: React.FC<Props> = ({ user, onUpdateUser }) => {
   const [loadingTier, setLoadingTier] = useState<SubscriptionTier | null>(null);
+  
+  // Add Child State
   const [newChildName, setNewChildName] = useState('');
   const [isAddingChild, setIsAddingChild] = useState(false);
+  
+  // Edit Child State
+  const [editingChildId, setEditingChildId] = useState<string | null>(null);
+  const [editChildName, setEditChildName] = useState('');
+  const [isSavingChild, setIsSavingChild] = useState(false);
+
   const [loadingAccountType, setLoadingAccountType] = useState(false);
 
   // We use the user's current account type to display prices
   const displayAccountType = user.accountType;
+  const CHILD_LIMIT = 4; // Optimized limit for profitability
 
   const handleSubscribe = async (tier: SubscriptionTier) => {
     if (tier === user.subscriptionTier) return;
@@ -63,20 +72,27 @@ const SubscriptionPage: React.FC<Props> = ({ user, onUpdateUser }) => {
   const handleAddChild = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newChildName.trim()) return;
+    
+    // UI Guard
+    if (user.children.length >= CHILD_LIMIT) {
+      alert(`Maximum of ${CHILD_LIMIT} profiles allowed.`);
+      return;
+    }
+
     setIsAddingChild(true);
     try {
       await addChildToUser(user.id, newChildName);
       setNewChildName('');
       onUpdateUser();
-    } catch (e) {
-      alert("Failed to add child.");
+    } catch (e: any) {
+      alert(e.message || "Failed to add child.");
     } finally {
       setIsAddingChild(false);
     }
   };
 
   const handleRemoveChild = async (childId: string, childName: string) => {
-    if (confirm(`Remove ${childName} from family?`)) {
+    if (confirm(`Remove ${childName} from family? This will not delete their saved drawings.`)) {
       try {
         const childObj = user.children.find(c => c.id === childId);
         if (childObj) {
@@ -86,6 +102,31 @@ const SubscriptionPage: React.FC<Props> = ({ user, onUpdateUser }) => {
       } catch (e) {
         alert("Failed to remove child.");
       }
+    }
+  };
+
+  const startEditing = (child: { id: string, name: string }) => {
+    setEditingChildId(child.id);
+    setEditChildName(child.name);
+  };
+
+  const cancelEditing = () => {
+    setEditingChildId(null);
+    setEditChildName('');
+  };
+
+  const saveChildName = async () => {
+    if (!editingChildId || !editChildName.trim()) return;
+    setIsSavingChild(true);
+    try {
+      await updateChild(user.id, editingChildId, editChildName);
+      setEditingChildId(null);
+      setEditChildName('');
+      onUpdateUser();
+    } catch (e) {
+      alert("Failed to update name.");
+    } finally {
+      setIsSavingChild(false);
     }
   };
 
@@ -141,7 +182,7 @@ const SubscriptionPage: React.FC<Props> = ({ user, onUpdateUser }) => {
                  <Users size={24} /> 
                  <div className="text-left">
                     <div className="font-bold">Family</div>
-                    <div className="text-[10px] opacity-80">Multiple profiles</div>
+                    <div className="text-[10px] opacity-80">Up to {CHILD_LIMIT} profiles</div>
                  </div>
                </button>
              </div>
@@ -154,7 +195,9 @@ const SubscriptionPage: React.FC<Props> = ({ user, onUpdateUser }) => {
              <div className="animate-fade-in-up bg-slate-50 p-6 rounded-2xl border border-slate-100">
                 <div className="flex justify-between items-center mb-4">
                     <label className="block text-sm font-bold text-slate-700">Family Members</label>
-                    <span className="text-xs text-slate-500">{user.children.length} profiles active</span>
+                    <span className={`text-xs font-bold ${user.children.length >= CHILD_LIMIT ? 'text-orange-500' : 'text-slate-500'}`}>
+                       {user.children.length} / {CHILD_LIMIT} profiles used
+                    </span>
                 </div>
                 
                 <div className="space-y-3 mb-4">
@@ -165,40 +208,94 @@ const SubscriptionPage: React.FC<Props> = ({ user, onUpdateUser }) => {
                     </div>
                   )}
                   {user.children.map(child => (
-                    <div key={child.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200 shadow-sm">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-400 to-indigo-400 text-white flex items-center justify-center font-bold text-xs shadow-sm">
-                           {child.name.charAt(0)}
+                    <div key={child.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200 shadow-sm transition-all">
+                      {editingChildId === child.id ? (
+                        /* Edit Mode */
+                        <div className="flex items-center gap-2 flex-1 animate-fade-in-up">
+                           <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center">
+                              <UserIcon size={14} />
+                           </div>
+                           <input 
+                             type="text" 
+                             value={editChildName} 
+                             onChange={(e) => setEditChildName(e.target.value)}
+                             className="flex-1 px-3 py-1.5 border border-indigo-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 text-sm font-bold text-slate-800"
+                             autoFocus
+                           />
+                           <button 
+                             onClick={saveChildName} 
+                             disabled={isSavingChild || !editChildName.trim()}
+                             className="p-1.5 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
+                           >
+                              {isSavingChild ? <Loader2 size={16} className="animate-spin"/> : <Save size={16} />}
+                           </button>
+                           <button 
+                             onClick={cancelEditing} 
+                             disabled={isSavingChild}
+                             className="p-1.5 bg-slate-100 text-slate-500 rounded-lg hover:bg-slate-200 transition-colors"
+                           >
+                              <X size={16} />
+                           </button>
                         </div>
-                        <span className="font-bold text-slate-700">{child.name}</span>
-                      </div>
-                      <button 
-                        onClick={() => handleRemoveChild(child.id, child.name)}
-                        className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Remove Profile"
-                      >
-                         <Trash2 size={16} />
-                      </button>
+                      ) : (
+                        /* View Mode */
+                        <>
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-400 to-indigo-400 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+                              {child.name.charAt(0)}
+                            </div>
+                            <span className="font-bold text-slate-700">{child.name}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button 
+                              onClick={() => startEditing(child)}
+                              className="p-2 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              title="Rename Profile"
+                            >
+                              <Pencil size={16} />
+                            </button>
+                            <button 
+                              onClick={() => handleRemoveChild(child.id, child.name)}
+                              className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Remove Profile"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>
+                
+                {user.children.length >= CHILD_LIMIT && (
+                   <div className="mb-4 flex items-center gap-2 text-xs text-orange-600 bg-orange-50 p-2 rounded-lg border border-orange-100">
+                      <AlertCircle size={14} className="flex-shrink-0" />
+                      <span>
+                        <strong>Limit Reached:</strong> You have added the maximum of {CHILD_LIMIT} child profiles included in this plan.
+                      </span>
+                   </div>
+                )}
 
-                <form onSubmit={handleAddChild} className="flex gap-2">
-                   <input
-                     type="text"
-                     value={newChildName}
-                     onChange={(e) => setNewChildName(e.target.value)}
-                     placeholder="Child's name (e.g. Leo)"
-                     className="flex-1 px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 bg-white"
-                   />
-                   <button 
-                     type="submit"
-                     disabled={isAddingChild || !newChildName.trim()}
-                     className="bg-indigo-600 text-white px-4 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-sm font-bold flex items-center gap-1"
-                   >
-                     {isAddingChild ? <Loader2 className="animate-spin" size={20} /> : <><Plus size={16} /> Add</>}
-                   </button>
-                </form>
+                {!editingChildId && (
+                  <form onSubmit={handleAddChild} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newChildName}
+                      onChange={(e) => setNewChildName(e.target.value)}
+                      placeholder={user.children.length >= CHILD_LIMIT ? "Limit reached" : "Child's name (e.g. Leo)"}
+                      disabled={user.children.length >= CHILD_LIMIT}
+                      className="flex-1 px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 bg-white disabled:bg-slate-100 disabled:text-slate-400 transition-colors"
+                    />
+                    <button 
+                      type="submit"
+                      disabled={isAddingChild || !newChildName.trim() || user.children.length >= CHILD_LIMIT}
+                      className="bg-indigo-600 text-white px-4 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-sm font-bold flex items-center gap-1"
+                    >
+                      {isAddingChild ? <Loader2 className="animate-spin" size={20} /> : <><Plus size={16} /> Add</>}
+                    </button>
+                  </form>
+                )}
              </div>
           )}
       </div>
@@ -209,7 +306,7 @@ const SubscriptionPage: React.FC<Props> = ({ user, onUpdateUser }) => {
         </h3>
         <p className="text-slate-500">
            {displayAccountType === 'family' 
-             ? 'Pricing includes multiple profiles and separate libraries.' 
+             ? 'Shared usage across up to 4 profiles.' 
              : 'Perfect for a single artist.'}
         </p>
       </div>
@@ -265,7 +362,7 @@ const SubscriptionPage: React.FC<Props> = ({ user, onUpdateUser }) => {
                   {displayAccountType === 'family' && (
                      <li className="flex items-start gap-2 text-sm bg-indigo-50 p-2 rounded-lg -mx-2">
                         <div className="mt-0.5 min-w-[16px] text-indigo-600"><Users size={14} /></div>
-                        <span className="text-indigo-900 font-bold">Includes Family Profiles</span>
+                        <span className="text-indigo-900 font-bold">Includes 4 Family Profiles</span>
                      </li>
                   )}
                 </ul>
