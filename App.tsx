@@ -1,22 +1,26 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { GeneratorConfig, GeneratedImage, SavedPage, ViewMode, User } from './types';
 import GeneratorForm from './components/GeneratorForm';
 import ImageGallery from './components/ImageGallery';
 import ChatBot from './components/ChatBot';
-import ColoringStudio from './components/ColoringStudio';
-import Library from './components/Library';
+// Lazy load components to save initial bandwidth
+const ColoringStudio = lazy(() => import('./components/ColoringStudio'));
+const Library = lazy(() => import('./components/Library'));
+const SubscriptionPage = lazy(() => import('./components/SubscriptionPage'));
+const PrivacyPage = lazy(() => import('./components/PrivacyPage'));
+const TermsPage = lazy(() => import('./components/TermsPage'));
+const ContactPage = lazy(() => import('./components/ContactPage'));
+const AboutPage = lazy(() => import('./components/AboutPage'));
+const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
+
 import Auth from './components/Auth';
 import LandingPage from './components/LandingPage';
-import SubscriptionPage from './components/SubscriptionPage';
-import PrivacyPage from './components/PrivacyPage';
-import TermsPage from './components/TermsPage';
-import ContactPage from './components/ContactPage';
 import { generateScenes, generateColoringPage } from './services/geminiService';
 import { createColoringBookPDF, printColoringBookPDF } from './services/pdfService';
 import { saveToLibrary, getLibrary } from './services/storageService';
 import { subscribeToAuthChanges, logout } from './services/authService';
-import { Pencil, Grid, PlusCircle, LogOut, Loader2, Crown } from 'lucide-react';
+import { Pencil, Grid, PlusCircle, LogOut, Loader2, Crown, Shield } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from './services/firebaseConfig';
 
@@ -272,18 +276,21 @@ const App: React.FC = () => {
     }
   };
 
+  const FullPageLoader = () => (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <Loader2 className="animate-spin text-indigo-600 w-10 h-10" />
+    </div>
+  );
+
   if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 className="animate-spin text-indigo-600 w-10 h-10" />
-      </div>
-    );
+    return <FullPageLoader />;
   }
 
   // Public Routes (Accessible regardless of Auth, but typically triggered from footer)
-  if (view === 'privacy') return <PrivacyPage onBack={navigateBack} />;
-  if (view === 'terms') return <TermsPage onBack={navigateBack} />;
-  if (view === 'contact') return <ContactPage onBack={navigateBack} />;
+  if (view === 'privacy') return <Suspense fallback={<FullPageLoader />}><PrivacyPage onBack={navigateBack} /></Suspense>;
+  if (view === 'terms') return <Suspense fallback={<FullPageLoader />}><TermsPage onBack={navigateBack} /></Suspense>;
+  if (view === 'contact') return <Suspense fallback={<FullPageLoader />}><ContactPage onBack={navigateBack} /></Suspense>;
+  if (view === 'about') return <Suspense fallback={<FullPageLoader />}><AboutPage onBack={navigateBack} /></Suspense>;
 
   // Not logged in routing
   if (!user) {
@@ -301,15 +308,33 @@ const App: React.FC = () => {
   // Render Studio Full Screen
   if (view === 'studio' && selectedPageForStudio) {
     return (
-      <ColoringStudio 
-        page={selectedPageForStudio} 
-        onBack={() => {
-          setView('library');
-          loadLibrary();
-        }}
-        onSave={() => loadLibrary()}
-        userId={user.id}
-      />
+      <Suspense fallback={<FullPageLoader />}>
+        <ColoringStudio 
+          page={selectedPageForStudio} 
+          onBack={() => {
+            setView('library');
+            loadLibrary();
+          }}
+          onSave={() => loadLibrary()}
+          userId={user.id}
+        />
+      </Suspense>
+    );
+  }
+
+  // Admin Route
+  if (view === 'admin' && user.isAdmin) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <div>
+          {/* Simple header for admin to get back */}
+          <div className="bg-slate-900 text-slate-400 p-2 text-xs flex justify-between px-6">
+             <span>Admin Mode Active</span>
+             <button onClick={() => setView('generator')} className="hover:text-white">Exit to App</button>
+          </div>
+          <AdminDashboard currentUser={user} />
+        </div>
+      </Suspense>
     );
   }
 
@@ -356,6 +381,16 @@ const App: React.FC = () => {
             <div className="h-6 w-px bg-slate-200 hidden md:block"></div>
 
             <div className="flex items-center gap-3">
+              {user.isAdmin && (
+                <button 
+                  onClick={() => setView('admin')}
+                  className="p-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 shadow-sm transition-colors"
+                  title="Admin Dashboard"
+                >
+                  <Shield size={18} />
+                </button>
+              )}
+              
               <div className="flex flex-col items-end hidden sm:flex">
                 <span className="text-sm font-bold text-slate-700">{user.name}</span>
                 <span className="text-xs text-slate-400 capitalize">{user.accountType === 'family' ? 'Family Plan' : 'Personal'}</span>
@@ -446,24 +481,29 @@ const App: React.FC = () => {
                     <Loader2 className="animate-spin text-indigo-400 w-8 h-8" />
                  </div>
             ) : (
-                <Library 
-                  pages={libraryPages} 
-                  onOpenStudio={handleOpenStudio}
-                  onRefresh={loadLibrary}
-                  userId={user.id}
-                />
+                <Suspense fallback={<Loader2 className="animate-spin" />}>
+                  <Library 
+                    pages={libraryPages} 
+                    onOpenStudio={handleOpenStudio}
+                    onRefresh={loadLibrary}
+                    userId={user.id}
+                  />
+                </Suspense>
             )}
           </div>
         )}
 
         {view === 'subscription' && (
-           <SubscriptionPage user={user} onUpdateUser={refreshUserProfile} />
+           <Suspense fallback={<Loader2 className="animate-spin" />}>
+             <SubscriptionPage user={user} onUpdateUser={refreshUserProfile} />
+           </Suspense>
         )}
       </main>
 
       {/* Footer */}
       <footer className="text-center py-8 text-slate-400 text-sm hidden md:block bg-slate-50 mt-auto">
         <div className="flex justify-center gap-6 mb-4">
+            <button onClick={() => setView('about')} className="hover:text-indigo-600 transition-colors">About Us</button>
             <button onClick={() => setView('privacy')} className="hover:text-indigo-600 transition-colors">Privacy</button>
             <button onClick={() => setView('terms')} className="hover:text-indigo-600 transition-colors">Terms</button>
             <button onClick={() => setView('contact')} className="hover:text-indigo-600 transition-colors">Contact</button>

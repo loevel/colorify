@@ -8,6 +8,7 @@ export interface GeneratedImage {
   loading: boolean;
   palette?: string[]; // Array of hex color codes
   error?: string;
+  createdAt?: number; // Added for sorting
 }
 
 export interface SavedPage {
@@ -27,6 +28,7 @@ export type SubscriptionTier = 'free' | 'pro' | 'unlimited';
 export interface Child {
   id: string;
   name: string;
+  children?: never; // fix typescript structural typing issue if needed
 }
 
 export type AccountType = 'personal' | 'family';
@@ -39,6 +41,7 @@ export interface User {
   subscriptionStatus: 'active' | 'canceled' | 'past_due';
   accountType: AccountType;
   children: Child[];
+  isAdmin?: boolean; // New flag for admin access
 }
 
 export interface PlanFeature {
@@ -49,13 +52,14 @@ export interface PlanFeature {
 export interface SubscriptionPlan {
   id: SubscriptionTier;
   name: string;
-  price: number; // Monthly price in cents
+  price: number; // Monthly price in cents for personal
+  familyPrice: number; // Monthly price in cents for family
   description: string;
   features: PlanFeature[];
   highlight?: boolean;
 }
 
-export type ViewMode = 'generator' | 'library' | 'studio' | 'subscription' | 'privacy' | 'terms' | 'contact';
+export type ViewMode = 'generator' | 'library' | 'studio' | 'subscription' | 'privacy' | 'terms' | 'contact' | 'about' | 'admin';
 
 export interface ChatMessage {
   role: 'user' | 'model';

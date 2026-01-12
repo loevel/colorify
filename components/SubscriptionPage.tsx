@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Check, Star, Shield, Zap, Loader2, Crown, Users, User as UserIcon, Plus, Trash2 } from 'lucide-react';
+import { Check, Shield, Loader2, Users, User as UserIcon, Plus, Trash2 } from 'lucide-react';
 import { User, SubscriptionTier, AccountType } from '../types';
 import { PLANS, upgradeSubscription, cancelSubscription } from '../services/subscriptionService';
 import { addChildToUser, removeChildFromUser, updateAccountType } from '../services/userService';
@@ -16,10 +16,17 @@ const SubscriptionPage: React.FC<Props> = ({ user, onUpdateUser }) => {
   const [isAddingChild, setIsAddingChild] = useState(false);
   const [loadingAccountType, setLoadingAccountType] = useState(false);
 
+  // We use the user's current account type to display prices
+  const displayAccountType = user.accountType;
+
   const handleSubscribe = async (tier: SubscriptionTier) => {
     if (tier === user.subscriptionTier) return;
     
-    if (confirm(`Are you sure you want to switch to the ${PLANS.find(p => p.id === tier)?.name} plan?`)) {
+    const plan = PLANS.find(p => p.id === tier);
+    const price = displayAccountType === 'family' ? plan?.familyPrice : plan?.price;
+    const priceStr = price ? `$${price/100}` : 'Free';
+
+    if (confirm(`Switch to ${plan?.name} (${displayAccountType}) for ${priceStr}/mo?`)) {
       setLoadingTier(tier);
       try {
         if (tier === 'free') {
@@ -71,7 +78,6 @@ const SubscriptionPage: React.FC<Props> = ({ user, onUpdateUser }) => {
   const handleRemoveChild = async (childId: string, childName: string) => {
     if (confirm(`Remove ${childName} from family?`)) {
       try {
-        // Need to pass the full object to arrayRemove in firebase
         const childObj = user.children.find(c => c.id === childId);
         if (childObj) {
            await removeChildFromUser(user.id, childObj);
@@ -96,9 +102,7 @@ const SubscriptionPage: React.FC<Props> = ({ user, onUpdateUser }) => {
               Current Plan: <span className="text-indigo-600">{currentPlan?.name}</span>
             </h2>
             <p className="text-slate-500 mt-1">
-              {user.subscriptionTier === 'free' 
-                ? "Upgrade to unlock unlimited creativity and HD downloads." 
-                : "Thanks for being a premium member! You're supporting the magic."}
+               Account Type: <span className="capitalize font-bold">{user.accountType}</span>
             </p>
           </div>
           
@@ -112,48 +116,66 @@ const SubscriptionPage: React.FC<Props> = ({ user, onUpdateUser }) => {
       {/* Account Settings / Family Management */}
       <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-8 mb-10">
           <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-            <Users size={20} /> Account Settings
+            <Users size={20} /> Account Configuration
           </h3>
           
           <div className="mb-8">
-             <label className="block text-sm font-bold text-slate-700 mb-3">Account Type</label>
+             <label className="block text-sm font-bold text-slate-700 mb-3">Who is coloring?</label>
              <div className="flex gap-4">
                <button
                  onClick={() => handleSwitchAccountType('personal')}
                  disabled={loadingAccountType}
-                 className={`flex-1 py-3 px-4 rounded-xl border flex items-center justify-center gap-2 transition-all ${user.accountType === 'personal' ? 'bg-indigo-50 border-indigo-500 text-indigo-700 font-bold' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                 className={`flex-1 py-4 px-4 rounded-xl border flex items-center justify-center gap-3 transition-all ${user.accountType === 'personal' ? 'bg-indigo-50 border-indigo-500 text-indigo-700 ring-2 ring-indigo-200' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
                >
-                 <UserIcon size={18} /> Personal
+                 <UserIcon size={24} /> 
+                 <div className="text-left">
+                    <div className="font-bold">Personal</div>
+                    <div className="text-[10px] opacity-80">Just for me</div>
+                 </div>
                </button>
                <button
                  onClick={() => handleSwitchAccountType('family')}
                  disabled={loadingAccountType}
-                 className={`flex-1 py-3 px-4 rounded-xl border flex items-center justify-center gap-2 transition-all ${user.accountType === 'family' ? 'bg-indigo-50 border-indigo-500 text-indigo-700 font-bold' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                 className={`flex-1 py-4 px-4 rounded-xl border flex items-center justify-center gap-3 transition-all ${user.accountType === 'family' ? 'bg-indigo-50 border-indigo-500 text-indigo-700 ring-2 ring-indigo-200' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
                >
-                 <Users size={18} /> Family
+                 <Users size={24} /> 
+                 <div className="text-left">
+                    <div className="font-bold">Family</div>
+                    <div className="text-[10px] opacity-80">Multiple profiles</div>
+                 </div>
                </button>
              </div>
+             {user.accountType === 'personal' && (
+                 <p className="text-xs text-slate-400 mt-2 text-center">Switch to Family to add child profiles and filter the library.</p>
+             )}
           </div>
 
           {user.accountType === 'family' && (
-             <div className="animate-fade-in-up">
-                <label className="block text-sm font-bold text-slate-700 mb-3">Family Members</label>
+             <div className="animate-fade-in-up bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                <div className="flex justify-between items-center mb-4">
+                    <label className="block text-sm font-bold text-slate-700">Family Members</label>
+                    <span className="text-xs text-slate-500">{user.children.length} profiles active</span>
+                </div>
                 
                 <div className="space-y-3 mb-4">
                   {user.children.length === 0 && (
-                    <p className="text-slate-400 text-sm italic">No children added yet.</p>
+                    <div className="text-center py-4 border-2 border-dashed border-slate-200 rounded-xl">
+                        <p className="text-slate-400 text-sm italic">No children added yet.</p>
+                        <p className="text-xs text-slate-300">Add profiles to personalize the experience.</p>
+                    </div>
                   )}
                   {user.children.map(child => (
-                    <div key={child.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <div key={child.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200 shadow-sm">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-400 to-indigo-400 text-white flex items-center justify-center font-bold text-xs shadow-sm">
                            {child.name.charAt(0)}
                         </div>
                         <span className="font-bold text-slate-700">{child.name}</span>
                       </div>
                       <button 
                         onClick={() => handleRemoveChild(child.id, child.name)}
-                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Remove Profile"
                       >
                          <Trash2 size={16} />
                       </button>
@@ -166,15 +188,15 @@ const SubscriptionPage: React.FC<Props> = ({ user, onUpdateUser }) => {
                      type="text"
                      value={newChildName}
                      onChange={(e) => setNewChildName(e.target.value)}
-                     placeholder="Add child's name..."
-                     className="flex-1 px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500"
+                     placeholder="Child's name (e.g. Leo)"
+                     className="flex-1 px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 bg-white"
                    />
                    <button 
                      type="submit"
                      disabled={isAddingChild || !newChildName.trim()}
-                     className="bg-indigo-600 text-white px-4 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                     className="bg-indigo-600 text-white px-4 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-sm font-bold flex items-center gap-1"
                    >
-                     {isAddingChild ? <Loader2 className="animate-spin" size={20} /> : <Plus size={20} />}
+                     {isAddingChild ? <Loader2 className="animate-spin" size={20} /> : <><Plus size={16} /> Add</>}
                    </button>
                 </form>
              </div>
@@ -182,14 +204,22 @@ const SubscriptionPage: React.FC<Props> = ({ user, onUpdateUser }) => {
       </div>
 
       <div className="text-center mb-10">
-        <h3 className="text-2xl font-bold text-slate-900 mb-2">Subscription Plans</h3>
-        <p className="text-slate-500">Choose the magic level that fits your family.</p>
+        <h3 className="text-2xl font-bold text-slate-900 mb-2">
+          {displayAccountType === 'family' ? 'Family Plans' : 'Personal Plans'}
+        </h3>
+        <p className="text-slate-500">
+           {displayAccountType === 'family' 
+             ? 'Pricing includes multiple profiles and separate libraries.' 
+             : 'Perfect for a single artist.'}
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
         {PLANS.map((plan) => {
           const isCurrent = user.subscriptionTier === plan.id;
           const isLoading = loadingTier === plan.id;
+          // Calculate dynamic price
+          const price = displayAccountType === 'family' ? plan.familyPrice : plan.price;
 
           return (
             <div 
@@ -216,7 +246,7 @@ const SubscriptionPage: React.FC<Props> = ({ user, onUpdateUser }) => {
               <div className="mb-4">
                 <h4 className="text-lg font-bold text-slate-800">{plan.name}</h4>
                 <div className="flex items-baseline mt-1">
-                  <span className="text-3xl font-extrabold text-slate-900">${plan.price / 100}</span>
+                  <span className="text-3xl font-extrabold text-slate-900">${price / 100}</span>
                   <span className="text-slate-500 text-sm ml-1">/mo</span>
                 </div>
                 <p className="text-xs text-slate-500 mt-2">{plan.description}</p>
@@ -232,6 +262,12 @@ const SubscriptionPage: React.FC<Props> = ({ user, onUpdateUser }) => {
                       <span className={feature.included ? 'text-slate-700' : 'text-slate-400'}>{feature.text}</span>
                     </li>
                   ))}
+                  {displayAccountType === 'family' && (
+                     <li className="flex items-start gap-2 text-sm bg-indigo-50 p-2 rounded-lg -mx-2">
+                        <div className="mt-0.5 min-w-[16px] text-indigo-600"><Users size={14} /></div>
+                        <span className="text-indigo-900 font-bold">Includes Family Profiles</span>
+                     </li>
+                  )}
                 </ul>
               </div>
 

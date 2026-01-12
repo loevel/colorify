@@ -8,6 +8,7 @@ export const PLANS: SubscriptionPlan[] = [
     id: 'free',
     name: 'Little Artist',
     price: 0,
+    familyPrice: 0,
     description: 'Perfect for trying out the magic.',
     features: [
       { text: '3 Color Pages per Day', included: true },
@@ -22,6 +23,7 @@ export const PLANS: SubscriptionPlan[] = [
     id: 'pro',
     name: 'Creative Pro',
     price: 999, // $9.99
+    familyPrice: 1499, // $14.99
     description: 'For the daily coloring enthusiast.',
     highlight: true,
     features: [
@@ -37,6 +39,7 @@ export const PLANS: SubscriptionPlan[] = [
     id: 'unlimited',
     name: 'Unlimited Magic',
     price: 1999, // $19.99
+    familyPrice: 2999, // $29.99
     description: 'Unleash infinite creativity.',
     features: [
       { text: 'Unlimited Generations', included: true },

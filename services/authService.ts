@@ -32,6 +32,10 @@ const mapUser = async (u: FirebaseUser): Promise<User> => {
     console.error("Error fetching user profile", e);
   }
 
+  // Hardcoded admin check for demo purposes
+  // In production, this should be a claim in the ID token or a field in Firestore protected by rules
+  const isAdmin = u.email === 'admin@colorcraft.app';
+
   return {
     id: u.uid,
     name: u.displayName || u.email?.split('@')[0] || 'Artist',
@@ -39,7 +43,8 @@ const mapUser = async (u: FirebaseUser): Promise<User> => {
     subscriptionTier,
     subscriptionStatus,
     accountType,
-    children
+    children,
+    isAdmin
   };
 };
 

@@ -2,7 +2,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { 
   ArrowLeft, Save, Undo, Redo, ZoomIn, ZoomOut, 
-  Eraser, Paintbrush, Download, Highlighter, PenTool, Sparkles, Plus, Trash2, X, AlertTriangle, Layers, Loader2, Lock
+  Eraser, Download, Highlighter, PenTool, Sparkles, Plus, X, AlertTriangle, Loader2, Lock, Palette, Maximize2
 } from 'lucide-react';
 import { SavedPage } from '../types';
 import { updatePageWork } from '../services/storageService';
@@ -21,8 +21,6 @@ type BrushType = 'marker' | 'crayon' | 'glitter';
 const BLEND_MODES: { label: string; value: GlobalCompositeOperation }[] = [
   { label: 'Normal', value: 'source-over' },
   { label: 'Multiply', value: 'multiply' },
-  { label: 'Screen', value: 'screen' },
-  { label: 'Overlay', value: 'overlay' },
 ];
 
 const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
@@ -42,12 +40,15 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
   
   const [isCanvasReady, setIsCanvasReady] = useState(false);
   const [loadError, setLoadError] = useState(false);
-  const [isTainted, setIsTainted] = useState(false); // New state to track if canvas is tainted (CORS failure)
+  const [isTainted, setIsTainted] = useState(false);
+
+  // UI State
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showBrushSettings, setShowBrushSettings] = useState(false);
 
   // Palette State
   const [customPalette, setCustomPalette] = useState<string[]>([]);
   const [recentColors, setRecentColors] = useState<string[]>([]);
-  const [draggedColorIndex, setDraggedColorIndex] = useState<number | null>(null);
   
   // History State
   const [history, setHistory] = useState<ImageData[]>([]);
@@ -59,7 +60,7 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
 
-  // Storage Keys (Still local for preferences)
+  // Storage Keys
   const customPaletteKey = `colorcraft_custom_palette_${userId}`;
   const recentColorsKey = `colorcraft_recent_colors_${userId}`;
 
@@ -97,33 +98,6 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
     }
   };
 
-  const removeColorFromPalette = (colorToRemove: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    saveCustomPalette(customPalette.filter(c => c !== colorToRemove));
-  };
-
-  // Drag and Drop Handlers for Palette
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    setDraggedColorIndex(index);
-    e.dataTransfer.effectAllowed = "move";
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault(); // Necessary to allow dropping
-  };
-
-  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
-    e.preventDefault();
-    if (draggedColorIndex === null) return;
-    
-    const newPalette = [...customPalette];
-    const [movedItem] = newPalette.splice(draggedColorIndex, 1);
-    newPalette.splice(dropIndex, 0, movedItem);
-    
-    saveCustomPalette(newPalette);
-    setDraggedColorIndex(null);
-  };
-
   // Initialize Canvas
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -136,19 +110,11 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
     setLoadError(false);
     setIsTainted(false);
 
-    // Determines which URL to load
     let base = page.coloredUrl || page.originalUrl;
-    
-    // CACHE BUSTING:
-    // Append a unique timestamp to the URL.
-    // This forces the browser to bypass its cache and make a fresh network request.
-    // Why? The Gallery view might have cached this image without CORS headers.
-    // If we request it again for the Canvas, the browser might serve that "unsafe" cached version.
-    // Adding a timestamp ensures we get a fresh response with the correct CORS headers from Firebase.
     const symbol = base.includes('?') ? '&' : '?';
-    const urlToLoad = `${base}${symbol}t=${Date.now()}`;
+    const isDataUrl = base.startsWith('data:');
+    const urlToLoad = isDataUrl ? base : `${base}${symbol}v=${page.lastModified}`;
 
-    // Function to load image with handling for CORS
     const setupCanvas = (img: HTMLImageElement, isTaintedMode: boolean) => {
       canvas.width = img.width;
       canvas.height = img.height;
@@ -164,78 +130,52 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
         setHistory([initialState]);
         setRedoStack([]);
         setHasUnsavedChanges(false);
-        setIsTainted(isTaintedMode); // Set the mode based on how we loaded
+        setIsTainted(isTaintedMode);
         setIsCanvasReady(true);
       } catch (e) {
-        // If getting image data fails even here, it's definitely tainted
         console.warn("Canvas tainted, saving disabled");
         setIsTainted(true);
         setIsCanvasReady(true);
       }
     };
 
-    // Attempt 1: Load with CORS (crossOrigin="anonymous")
-    // This allows us to use toDataURL() later for saving.
     const imgSecure = new Image();
-    imgSecure.crossOrigin = "anonymous";
+    if (!isDataUrl) imgSecure.crossOrigin = "anonymous";
     imgSecure.src = urlToLoad;
 
-    imgSecure.onload = () => {
-      setupCanvas(imgSecure, false);
-    };
-
+    imgSecure.onload = () => setupCanvas(imgSecure, false);
     imgSecure.onerror = () => {
-      console.warn("CORS load failed. Falling back to insecure load.");
-      
-      // Attempt 2: Load without CORS
-      // We can display the image, but we cannot save it (Tainted Canvas).
       const imgInsecure = new Image();
-      imgInsecure.src = urlToLoad; // No crossOrigin set
-      
-      imgInsecure.onload = () => {
-        setupCanvas(imgInsecure, true);
-      };
-      
+      imgInsecure.src = urlToLoad;
+      imgInsecure.onload = () => setupCanvas(imgInsecure, true);
       imgInsecure.onerror = () => {
-        console.error("Failed to load image entirely.");
         setLoadError(true);
         setIsCanvasReady(true);
       };
     };
 
-  }, [page.id, page.coloredUrl, page.originalUrl]);
+  }, [page.id, page.coloredUrl, page.originalUrl, page.lastModified]);
 
   const saveHistory = () => {
-    // If canvas is tainted, we can't read pixels, so history is disabled to prevent crash
     if (isTainted) return; 
-
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
     try {
       const newState = ctx.getImageData(0, 0, canvas.width, canvas.height);
       setHistory(prev => {
         const newHistory = [...prev, newState];
-        if (newHistory.length > 20) {
-          return newHistory.slice(newHistory.length - 20);
-        }
-        return newHistory;
+        return newHistory.length > 20 ? newHistory.slice(newHistory.length - 20) : newHistory;
       });
       setRedoStack([]);
-    } catch (e) {
-      console.error("Cannot save history on tainted canvas");
-    }
+    } catch (e) { console.error(e); }
   };
 
   const handleUndo = () => {
     if (history.length <= 1) return;
-    
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
-
     const previousState = history[history.length - 2];
     setRedoStack(prev => [...prev, history[history.length - 1]]);
     setHistory(prev => prev.slice(0, -1));
@@ -245,11 +185,9 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
 
   const handleRedo = () => {
     if (redoStack.length === 0) return;
-
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
-
     const stateToRestore = redoStack[redoStack.length - 1];
     setHistory(prev => [...prev, stateToRestore]);
     setRedoStack(prev => prev.slice(0, -1));
@@ -307,11 +245,9 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
   const getCoordinates = (e: React.MouseEvent | React.TouchEvent) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
-    
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
-
     let clientX, clientY;
     if ('touches' in e) {
       clientX = e.touches[0].clientX;
@@ -320,20 +256,14 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
       clientX = (e as React.MouseEvent).clientX;
       clientY = (e as React.MouseEvent).clientY;
     }
-
-    return {
-      x: (clientX - rect.left) * scaleX,
-      y: (clientY - rect.top) * scaleY
-    };
+    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
   };
 
   const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
     if (!isCanvasReady) return;
     if ('touches' in e) e.preventDefault();
-    
     setIsDrawing(true);
     const { x, y } = getCoordinates(e);
-    
     const ctx = canvasRef.current?.getContext('2d');
     if (!ctx) return;
 
@@ -386,10 +316,9 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
     }
   };
 
-  // Saving Logic (Composite Layer)
   const handleSave = async (download = false, exitAfter = false) => {
     if (isTainted) {
-      alert("Cannot save: Image loaded in restricted mode (Security/CORS).");
+      alert("Cannot save: Image loaded in restricted mode.");
       return;
     }
 
@@ -407,13 +336,11 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
     ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
     ctx.drawImage(canvas, 0, 0);
 
-    // Fallback for line art overlay: try secure, if fail, try insecure but just warn
     const lineArtImg = new Image();
     lineArtImg.crossOrigin = "anonymous";
-    // Also use cache buster here for the save process
     const base = page.originalUrl;
     const symbol = base.includes('?') ? '&' : '?';
-    lineArtImg.src = `${base}${symbol}t=${Date.now()}`;
+    lineArtImg.src = `${base}${symbol}v=${page.lastModified}`;
     
     await new Promise<void>((resolve) => {
       lineArtImg.onload = () => {
@@ -421,427 +348,253 @@ const ColoringStudio: React.FC<Props> = ({ page, onBack, onSave, userId }) => {
         ctx.drawImage(lineArtImg, 0, 0, tempCanvas.width, tempCanvas.height);
         resolve();
       };
-      lineArtImg.onerror = () => {
-        // If we can't load the outline for saving, we save just the colors? 
-        // Or we try without CORS (which will taint this temp canvas too, forcing failure)
-        // Since we are here, we assume the user's canvas wasn't tainted, so the image SHOULD load.
-        // If it fails, maybe network glitch.
-        console.error("Failed to load line art for saving");
-        resolve();
-      };
+      lineArtImg.onerror = () => resolve();
     });
 
     try {
-      const finalDataUrl = tempCanvas.toDataURL('image/png');
-
+      const finalDataUrl = tempCanvas.toDataURL('image/webp', 0.85);
       if (download) {
         const link = document.createElement('a');
-        link.download = `ColorCraft_${page.childName}_${page.theme}.png`;
+        link.download = `ColorCraft_${page.childName}_${page.theme}.webp`;
         link.href = finalDataUrl;
         link.click();
         setIsSaving(false);
         return;
       }
-
       await updatePageWork(userId, page.theme, page.id, finalDataUrl);
       setHasUnsavedChanges(false);
       onSave(); 
     } catch (e) {
-      alert("Failed to save work. Security restriction or Network error.");
-      console.error(e);
+      alert("Failed to save work.");
     } finally {
       setIsSaving(false);
     }
-
-    if (exitAfter) {
-      onBack();
-    }
+    if (exitAfter) onBack();
   };
 
   const handleBack = () => {
-    if (hasUnsavedChanges && !isTainted) {
-      setShowExitDialog(true);
-    } else {
-      onBack();
-    }
+    if (hasUnsavedChanges && !isTainted) setShowExitDialog(true);
+    else onBack();
   };
 
-  // Auto-save Implementation
   useEffect(() => {
     autoSaveRef.current = () => {
-      if (hasUnsavedChanges && !isSaving && !isTainted) {
-        handleSave(false, false);
-      }
+      if (hasUnsavedChanges && !isSaving && !isTainted) handleSave(false, false);
     };
   });
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (autoSaveRef.current) {
-        autoSaveRef.current();
-      }
-    }, 120000); 
-
+    const interval = setInterval(() => { if (autoSaveRef.current) autoSaveRef.current(); }, 120000); 
     return () => clearInterval(interval);
   }, []);
 
-  return (
-    <div className="fixed inset-0 z-50 bg-slate-100 flex flex-col h-screen">
-      {/* Header Toolbar */}
-      <div className="bg-white border-b border-slate-200 px-4 py-3 flex justify-between items-center shadow-sm z-10">
-        <div className="flex items-center gap-3">
-          <button onClick={handleBack} className="p-2 hover:bg-slate-100 rounded-full text-slate-600 transition-colors">
-            <ArrowLeft size={20} />
-          </button>
-          <div>
-            <h2 className="font-bold text-slate-800 leading-tight comic-font">{page.theme}</h2>
-            <p className="text-xs text-slate-500">Artist: {page.childName}</p>
+  // --- UI Components ---
+
+  const FloatingDock = () => (
+    <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-4 z-40 w-full px-4 max-w-2xl pointer-events-none">
+      
+      {/* Color Picker Popover */}
+      {showColorPicker && (
+        <div className="bg-white/90 backdrop-blur-xl border border-white/20 p-4 rounded-3xl shadow-2xl animate-fade-in-up w-full pointer-events-auto max-w-md mx-auto">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-xs font-bold text-slate-500 uppercase">Colors</span>
+            <button onClick={() => setShowColorPicker(false)}><X size={16} className="text-slate-400" /></button>
+          </div>
+          
+          <div className="grid grid-cols-6 gap-3 mb-4">
+             {page.palette.map((c, i) => (
+                <button key={`pal-${i}`} onClick={() => { setActiveColor(c); setTool('brush'); }} className={`w-8 h-8 rounded-full border-2 transition-transform ${activeColor === c ? 'border-indigo-500 scale-110' : 'border-transparent'}`} style={{ backgroundColor: c }} />
+             ))}
+             {recentColors.slice(0, 6).map((c, i) => (
+                <button key={`rec-${i}`} onClick={() => { setActiveColor(c); setTool('brush'); }} className={`w-8 h-8 rounded-full border-2 transition-transform ${activeColor === c ? 'border-indigo-500 scale-110' : 'border-transparent'}`} style={{ backgroundColor: c }} />
+             ))}
+          </div>
+          
+          <div className="h-px bg-slate-200 my-2"></div>
+          
+          <div className="flex items-center gap-3">
+             <div className="relative flex-1 h-10 rounded-full overflow-hidden border border-slate-200">
+               <input type="color" value={activeColor} onChange={(e) => setActiveColor(e.target.value)} className="absolute -top-4 -left-4 w-32 h-32 cursor-pointer" />
+               <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-xs font-bold text-slate-500 mix-blend-difference text-white">Custom Mix</div>
+             </div>
+             <button onClick={addCurrentColorToPalette} className="p-2 bg-slate-100 rounded-full text-indigo-600"><Plus size={20}/></button>
           </div>
         </div>
+      )}
 
-        {isTainted ? (
-           <div className="flex items-center gap-2 text-amber-600 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-200">
-             <Lock size={14} />
-             <span className="text-xs font-bold">View Only (Security Restricted)</span>
-           </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={handleUndo} 
-              disabled={history.length <= 1}
-              className="p-2 text-slate-600 disabled:opacity-30 hover:bg-slate-100 rounded-lg"
-              title="Undo"
-            >
+      {/* Main Dock */}
+      <div className="bg-white/80 backdrop-blur-xl border border-white/40 shadow-2xl shadow-slate-200/50 rounded-full p-2 flex items-center gap-2 pointer-events-auto">
+         {/* Drawing Tools */}
+         <div className="flex items-center gap-1 bg-slate-100/50 rounded-full p-1">
+            <button onClick={() => { setTool('brush'); setBrushType('marker'); }} className={`p-3 rounded-full transition-all ${tool === 'brush' && brushType === 'marker' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:bg-white'}`}>
+               <PenTool size={20} />
+            </button>
+            <button onClick={() => { setTool('brush'); setBrushType('crayon'); }} className={`p-3 rounded-full transition-all ${tool === 'brush' && brushType === 'crayon' ? 'bg-orange-500 text-white shadow-lg' : 'text-slate-500 hover:bg-white'}`}>
+               <Highlighter size={20} />
+            </button>
+            <button onClick={() => { setTool('brush'); setBrushType('glitter'); }} className={`p-3 rounded-full transition-all ${tool === 'brush' && brushType === 'glitter' ? 'bg-purple-500 text-white shadow-lg' : 'text-slate-500 hover:bg-white'}`}>
+               <Sparkles size={20} />
+            </button>
+            <button onClick={() => setTool('eraser')} className={`p-3 rounded-full transition-all ${tool === 'eraser' ? 'bg-slate-700 text-white shadow-lg' : 'text-slate-500 hover:bg-white'}`}>
+               <Eraser size={20} />
+            </button>
+         </div>
+
+         <div className="w-px h-8 bg-slate-300 mx-1"></div>
+
+         {/* Color Trigger */}
+         <button 
+           onClick={() => setShowColorPicker(!showColorPicker)}
+           className="w-12 h-12 rounded-full border-4 border-white shadow-md transition-transform active:scale-95 relative"
+           style={{ backgroundColor: activeColor }}
+         >
+           <span className="absolute -top-1 -right-1 bg-white rounded-full p-1 shadow-sm">
+             <Palette size={10} className="text-slate-600" />
+           </span>
+         </button>
+
+         <div className="w-px h-8 bg-slate-300 mx-1"></div>
+
+         {/* Size & Settings */}
+         <div className="flex items-center gap-1">
+             <div className="flex flex-col gap-1 mx-2">
+                {BRUSH_SIZES.map(size => (
+                   <button 
+                     key={size}
+                     onClick={() => setBrushSize(size)}
+                     className={`rounded-full transition-all ${brushSize === size ? 'bg-slate-800' : 'bg-slate-300'}`}
+                     style={{ width: Math.max(4, size/3), height: Math.max(4, size/3) }} 
+                   />
+                ))}
+             </div>
+         </div>
+         
+         <div className="w-px h-8 bg-slate-300 mx-1"></div>
+
+         {/* Undo/Redo */}
+         <div className="flex items-center gap-1">
+           <button onClick={handleUndo} disabled={history.length <= 1} className="p-3 text-slate-600 hover:text-slate-900 disabled:opacity-30">
               <Undo size={20} />
-            </button>
-            <button 
-              onClick={handleRedo} 
-              disabled={redoStack.length === 0}
-              className="p-2 text-slate-600 disabled:opacity-30 hover:bg-slate-100 rounded-lg"
-              title="Redo"
-            >
+           </button>
+           <button onClick={handleRedo} disabled={redoStack.length === 0} className="p-3 text-slate-600 hover:text-slate-900 disabled:opacity-30">
               <Redo size={20} />
-            </button>
-            <div className="h-6 w-px bg-slate-300 mx-1"></div>
-            <button 
-              onClick={() => handleSave(false)}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full font-medium text-sm transition-colors"
-            >
-               {isSaving ? <span className="animate-spin">⌛</span> : <Save size={16} />}
-               <span>Save</span>
-            </button>
-            <button 
-              onClick={() => handleSave(true)}
-              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-full border border-indigo-200"
-              title="Download Image"
-            >
-               <Download size={20} />
-            </button>
-          </div>
-        )}
+           </button>
+         </div>
       </div>
+    </div>
+  );
 
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar: Tools */}
-        <div className="w-20 bg-white border-r border-slate-200 flex flex-col items-center py-4 gap-4 z-10 shadow-sm overflow-y-auto scrollbar-hide">
-          {/* Tools */}
-          <div className="flex flex-col gap-3 w-full px-2">
-            <button
-              onClick={() => { setTool('brush'); setBrushType('marker'); }}
-              className={`p-3 rounded-xl flex flex-col items-center gap-1 transition-all ${tool === 'brush' && brushType === 'marker' ? 'bg-indigo-100 text-indigo-700 ring-2 ring-indigo-500 ring-offset-1' : 'text-slate-500 hover:bg-slate-50'}`}
-              title="Marker"
-            >
-              <PenTool size={24} />
-              <span className="text-[10px] font-bold">Marker</span>
-            </button>
-            
-            <button
-              onClick={() => { setTool('brush'); setBrushType('crayon'); }}
-              className={`p-3 rounded-xl flex flex-col items-center gap-1 transition-all ${tool === 'brush' && brushType === 'crayon' ? 'bg-orange-100 text-orange-700 ring-2 ring-orange-500 ring-offset-1' : 'text-slate-500 hover:bg-slate-50'}`}
-              title="Crayon"
-            >
-              <Highlighter size={24} />
-              <span className="text-[10px] font-bold">Crayon</span>
-            </button>
-
-            <button
-              onClick={() => { setTool('brush'); setBrushType('glitter'); }}
-              className={`p-3 rounded-xl flex flex-col items-center gap-1 transition-all ${tool === 'brush' && brushType === 'glitter' ? 'bg-purple-100 text-purple-700 ring-2 ring-purple-500 ring-offset-1' : 'text-slate-500 hover:bg-slate-50'}`}
-              title="Glitter"
-            >
-              <Sparkles size={24} />
-              <span className="text-[10px] font-bold">Glitter</span>
-            </button>
-
-            {/* Blend Mode */}
-            <div className="w-full px-1">
-               <label className="text-[9px] font-bold text-slate-400 uppercase block text-center mb-1">Blending</label>
-               <div className="relative">
-                 <select 
-                   value={blendMode}
-                   onChange={(e) => setBlendMode(e.target.value as GlobalCompositeOperation)}
-                   className="w-full p-1 text-[10px] border border-slate-200 rounded bg-white text-slate-700 focus:outline-none focus:border-indigo-500 appearance-none text-center font-semibold"
-                 >
-                   {BLEND_MODES.map(m => (
-                     <option key={m.value} value={m.value}>{m.label}</option>
-                   ))}
-                 </select>
-               </div>
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-50 flex flex-col h-screen overflow-hidden">
+      {/* Top Floating Header */}
+      <header className="absolute top-0 left-0 right-0 z-40 p-4 pointer-events-none">
+         <div className="max-w-7xl mx-auto flex justify-between items-center">
+            {/* Back & Title */}
+            <div className="bg-white/80 backdrop-blur-md shadow-sm border border-white/50 rounded-full px-4 py-2 flex items-center gap-3 pointer-events-auto">
+               <button onClick={handleBack} className="p-1.5 hover:bg-slate-100 rounded-full text-slate-600 transition-colors">
+                 <ArrowLeft size={20} />
+               </button>
+               <div className="h-4 w-px bg-slate-200"></div>
+               <h2 className="font-bold text-slate-800 text-sm">{page.theme}</h2>
             </div>
 
-            <div className="w-12 h-px bg-slate-200 my-1 mx-auto"></div>
-
-            <button
-              onClick={() => setTool('eraser')}
-              className={`p-3 rounded-xl flex flex-col items-center gap-1 transition-all ${tool === 'eraser' ? 'bg-pink-100 text-pink-700 ring-2 ring-pink-500 ring-offset-1' : 'text-slate-500 hover:bg-slate-50'}`}
-              title="Eraser"
-            >
-              <Eraser size={24} />
-              <span className="text-[10px] font-bold">Eraser</span>
-            </button>
-          </div>
-
-          <div className="w-12 h-px bg-slate-200"></div>
-
-          {/* Size */}
-          <div className="flex flex-col gap-2 items-center w-full">
-            <span className="text-[10px] font-bold text-slate-400">SIZE</span>
-            {BRUSH_SIZES.map(size => (
-              <button
-                key={size}
-                onClick={() => setBrushSize(size)}
-                title={`Brush Size: ${size}px`}
-                className={`rounded-full bg-slate-800 transition-all ${brushSize === size ? 'ring-2 ring-indigo-500 ring-offset-2 scale-110' : 'opacity-40 hover:opacity-70'}`}
-                style={{ width: Math.max(8, size/1.5), height: Math.max(8, size/1.5) }}
-              />
-            ))}
-          </div>
-          
-           <div className="w-12 h-px bg-slate-200"></div>
-
-           {/* Zoom */}
-           <div className="flex flex-col gap-2">
-              <button 
-                onClick={() => setZoomIndex(Math.min(ZOOM_LEVELS.length - 1, zoomIndex + 1))} 
-                className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg active:scale-95 transition-transform"
-                title="Zoom In"
-              >
-                <ZoomIn size={20} />
-              </button>
-              <span className="text-xs text-center font-medium text-slate-400">
-                {Math.round(ZOOM_LEVELS[zoomIndex] * 100)}%
-              </span>
-              <button 
-                onClick={() => setZoomIndex(Math.max(0, zoomIndex - 1))} 
-                className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg active:scale-95 transition-transform"
-                title="Zoom Out"
-              >
-                <ZoomOut size={20} />
-              </button>
-           </div>
-        </div>
-
-        {/* Main Canvas Area */}
-        <div 
-          ref={containerRef}
-          className="flex-1 bg-slate-200/50 overflow-auto flex items-center justify-center p-8 relative cursor-crosshair touch-none"
-        >
-          {/* Loading Indicator */}
-          {!isCanvasReady && !loadError && (
-             <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-slate-100/80 backdrop-blur-sm">
-                <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mb-4" />
-                <p className="font-bold text-slate-600 animate-pulse">Setting up studio...</p>
-             </div>
-          )}
-          
-          {/* Load Error State */}
-          {loadError && (
-             <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-slate-100">
-                <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
-                <h3 className="font-bold text-slate-800 text-lg">Failed to Load Image</h3>
-                <p className="text-slate-600 mb-6">We couldn't load the drawing canvas.</p>
-                <button 
-                   onClick={onBack}
-                   className="px-6 py-3 bg-white border border-slate-300 rounded-xl font-bold shadow-sm hover:bg-slate-50"
-                >
-                   Go Back
-                </button>
-             </div>
-          )}
-
-          <div 
-            className="relative shadow-2xl bg-white transition-opacity duration-300"
-            style={{ 
-              transform: `scale(${ZOOM_LEVELS[zoomIndex]})`,
-              transformOrigin: 'center center',
-              transition: 'transform 0.2s ease-out',
-              opacity: isCanvasReady ? 1 : 0
-            }}
-          >
-            {/* The Drawing Layer */}
-            <canvas
-              ref={canvasRef}
-              onMouseDown={startDrawing}
-              onMouseMove={draw}
-              onMouseUp={stopDrawing}
-              onMouseLeave={stopDrawing}
-              onTouchStart={startDrawing}
-              onTouchMove={draw}
-              onTouchEnd={stopDrawing}
-              className="block"
-            />
-            {/* The Outline Overlay */}
-            {/* Note: If CORS failed, we load insecurely here so user can at least see it */}
-            <img 
-              src={page.originalUrl} 
-              alt="outline" 
-              className="absolute inset-0 w-full h-full pointer-events-none select-none"
-              style={{ mixBlendMode: 'multiply' }}
-              crossOrigin={isTainted ? undefined : "anonymous"} 
-            />
-          </div>
-        </div>
-
-        {/* Right Sidebar: Colors */}
-        <div className="w-64 bg-white border-l border-slate-200 flex flex-col z-10 shadow-sm">
-          <div className="p-4 flex-1 overflow-y-auto">
-             
-             {/* Recent Colors */}
-             {recentColors.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider mb-3">Recent</h3>
-                  <div className="grid grid-cols-5 gap-2">
-                    {recentColors.map((color, i) => (
-                      <button
-                        key={`recent-${i}`}
-                        onClick={() => { setActiveColor(color); setTool('brush'); }}
-                        className={`w-8 h-8 rounded-full shadow-sm border border-slate-200 transition-transform ${activeColor === color && tool === 'brush' ? 'ring-2 ring-indigo-500 ring-offset-2 scale-110' : 'hover:scale-105'}`}
-                        style={{ backgroundColor: color }}
-                        title={color}
-                      />
-                    ))}
-                  </div>
-                </div>
-             )}
-
-             <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider mb-3">Suggestion</h3>
-             <div className="grid grid-cols-4 gap-3 mb-6">
-              {page.palette.map((color, i) => (
-                <button
-                  key={`pal-${i}`}
-                  onClick={() => { setActiveColor(color); setTool('brush'); }}
-                  className={`w-10 h-10 rounded-full shadow-sm border border-slate-200 transition-transform ${activeColor === color && tool === 'brush' ? 'ring-2 ring-indigo-500 ring-offset-2 scale-110' : 'hover:scale-105'}`}
-                  style={{ backgroundColor: color }}
-                  title="Suggested color"
-                />
-              ))}
-             </div>
-
-             {/* My Palette */}
-             <div className="mb-6">
-               <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
-                 My Colors
-               </h3>
-               {customPalette.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic mb-2">Save custom colors below</p>
+            {/* Actions */}
+            <div className="bg-white/80 backdrop-blur-md shadow-sm border border-white/50 rounded-full p-1 flex items-center gap-1 pointer-events-auto">
+               <button onClick={() => setZoomIndex(Math.max(0, zoomIndex - 1))} className="p-2 text-slate-500 hover:bg-slate-100 rounded-full">
+                  <ZoomOut size={18} />
+               </button>
+               <span className="text-xs font-bold text-slate-400 w-8 text-center">{Math.round(ZOOM_LEVELS[zoomIndex] * 100)}%</span>
+               <button onClick={() => setZoomIndex(Math.min(ZOOM_LEVELS.length - 1, zoomIndex + 1))} className="p-2 text-slate-500 hover:bg-slate-100 rounded-full">
+                  <ZoomIn size={18} />
+               </button>
+               <div className="h-4 w-px bg-slate-200 mx-1"></div>
+               {isTainted ? (
+                 <div className="px-3 flex items-center gap-1 text-amber-600 text-xs font-bold"><Lock size={12}/> View Only</div>
                ) : (
-                 <div className="grid grid-cols-4 gap-3">
-                    {customPalette.map((color, i) => (
-                      <div 
-                        key={`cust-${i}`} 
-                        className="relative group"
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, i)}
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleDrop(e, i)}
-                      >
-                        <button
-                          onClick={() => { setActiveColor(color); setTool('brush'); }}
-                          className={`w-10 h-10 rounded-full shadow-sm border border-slate-200 transition-transform ${activeColor === color && tool === 'brush' ? 'ring-2 ring-indigo-500 ring-offset-2 scale-110' : 'hover:scale-105'} cursor-move`}
-                          style={{ backgroundColor: color }}
-                          title="Drag to reorder"
-                        />
-                        <button 
-                          onClick={(e) => removeColorFromPalette(color, e)}
-                          className="absolute -top-1 -right-1 bg-white text-slate-500 hover:text-red-500 rounded-full p-0.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity border border-slate-200 z-10"
-                          title="Remove color"
-                        >
-                          <X size={10} />
-                        </button>
-                      </div>
-                    ))}
-                 </div>
+                 <>
+                   <button onClick={() => handleSave(false)} className="px-4 py-2 bg-slate-900 text-white rounded-full font-bold text-sm hover:bg-slate-800 transition-colors flex items-center gap-2">
+                      {isSaving ? <Loader2 size={16} className="animate-spin" /> : "Save"}
+                   </button>
+                   <button onClick={() => handleSave(true)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-full" title="Download">
+                      <Download size={20} />
+                   </button>
+                 </>
                )}
-             </div>
+            </div>
+         </div>
+      </header>
 
-             <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider mb-3">Classic</h3>
-             <div className="grid grid-cols-4 gap-3 pb-20">
-               {['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FFA500', '#800080', '#00FFFF', '#FFC0CB', '#8B4513', '#000000', '#808080', '#FFFFFF'].map(c => (
-                 <button
-                   key={c}
-                   onClick={() => { setActiveColor(c); setTool('brush'); }}
-                   className={`w-10 h-10 rounded-full shadow-sm border border-slate-200 transition-transform ${activeColor === c && tool === 'brush' ? 'ring-2 ring-indigo-500 ring-offset-2 scale-110' : 'hover:scale-105'}`}
-                   style={{ backgroundColor: c }}
-                   title={c}
-                 />
-               ))}
-             </div>
-          </div>
-          
-          <div className="p-4 bg-slate-50 border-t border-slate-200">
-                <div className="flex justify-between items-center mb-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase">Mixer</label>
-                  <button 
-                    onClick={addCurrentColorToPalette}
-                    disabled={customPalette.includes(activeColor)}
-                    className="text-xs flex items-center gap-1 text-indigo-600 font-bold hover:text-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Add current color to 'My Colors'"
-                  >
-                    <Plus size={12} /> Save Color
-                  </button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input 
-                    type="color" 
-                    value={activeColor}
-                    onChange={(e) => { setActiveColor(e.target.value); setTool('brush'); }}
-                    className="flex-1 h-10 rounded-lg cursor-pointer border-0 bg-transparent p-0"
-                    title="Pick any color"
-                  />
-                </div>
-          </div>
+      {/* Main Canvas Area */}
+      <div 
+        ref={containerRef}
+        className="flex-1 overflow-auto flex items-center justify-center p-8 relative cursor-crosshair touch-none bg-slate-50"
+      >
+        {!isCanvasReady && !loadError && (
+           <div className="absolute inset-0 flex flex-col items-center justify-center z-50 bg-slate-50/80 backdrop-blur-sm">
+              <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mb-4" />
+              <p className="font-bold text-slate-600 animate-pulse">Opening Studio...</p>
+           </div>
+        )}
+        
+        {loadError && (
+           <div className="absolute inset-0 flex flex-col items-center justify-center z-50">
+              <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
+              <p className="text-slate-600 mb-6">Failed to load drawing.</p>
+              <button onClick={onBack} className="px-6 py-3 bg-white border rounded-xl font-bold">Go Back</button>
+           </div>
+        )}
+
+        <div 
+          className="relative shadow-2xl shadow-slate-300/50 bg-white transition-all duration-300 rounded-lg overflow-hidden ring-1 ring-slate-900/5"
+          style={{ 
+            transform: `scale(${ZOOM_LEVELS[zoomIndex]})`,
+            transformOrigin: 'center center',
+            opacity: isCanvasReady ? 1 : 0
+          }}
+        >
+          <canvas
+            ref={canvasRef}
+            onMouseDown={startDrawing}
+            onMouseMove={draw}
+            onMouseUp={stopDrawing}
+            onMouseLeave={stopDrawing}
+            onTouchStart={startDrawing}
+            onTouchMove={draw}
+            onTouchEnd={stopDrawing}
+            className="block"
+          />
+          <img 
+            src={page.originalUrl} 
+            alt="outline" 
+            className="absolute inset-0 w-full h-full pointer-events-none select-none"
+            style={{ mixBlendMode: 'multiply' }}
+            crossOrigin={isTainted ? undefined : "anonymous"} 
+          />
         </div>
       </div>
+
+      <FloatingDock />
       
       {/* Confirmation Dialog */}
       {showExitDialog && (
-        <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 animate-fade-in-up">
+        <div className="fixed inset-0 z-[100] bg-black/20 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 animate-fade-in-up border border-slate-100">
             <div className="flex flex-col items-center text-center">
               <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mb-4">
                 <AlertTriangle size={24} />
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">Unsaved Changes</h3>
               <p className="text-slate-600 mb-6">
-                You have unsaved work. If you leave now, your masterpiece will be lost! Do you want to save it?
+                You have unsaved work. If you leave now, your masterpiece will be lost!
               </p>
               <div className="flex flex-col w-full gap-2">
-                <button
-                  onClick={() => handleSave(false, true)}
-                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors"
-                >
+                <button onClick={() => handleSave(false, true)} className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold transition-colors">
                   Save & Exit
                 </button>
-                <button
-                  onClick={() => { setShowExitDialog(false); onBack(); }}
-                  className="w-full py-3 bg-white border border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-slate-700 rounded-xl font-bold transition-colors"
-                >
+                <button onClick={() => { setShowExitDialog(false); onBack(); }} className="w-full py-3 bg-white border border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-slate-700 rounded-2xl font-bold transition-colors">
                   Discard Changes
                 </button>
-                <button
-                  onClick={() => setShowExitDialog(false)}
-                  className="w-full py-3 text-slate-500 hover:text-slate-700 font-medium text-sm"
-                >
+                <button onClick={() => setShowExitDialog(false)} className="w-full py-3 text-slate-500 hover:text-slate-700 font-medium text-sm">
                   Cancel
                 </button>
               </div>

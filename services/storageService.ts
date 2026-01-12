@@ -1,4 +1,5 @@
-import { SavedPage, GeneratedImage } from "../types";
+
+import { SavedPage, GeneratedImage, User } from "../types";
 import { db, storage } from "./firebaseConfig";
 import { 
   collection, 
@@ -6,7 +7,11 @@ import {
   setDoc, 
   getDocs, 
   deleteDoc, 
-  updateDoc
+  updateDoc,
+  collectionGroup,
+  query,
+  limit,
+  orderBy
 } from "firebase/firestore";
 import { 
   ref, 
@@ -20,24 +25,51 @@ const getThemeId = (theme: string) => {
   return theme.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_') || 'default_theme';
 };
 
-// Helper: Upload Base64 Data URL to Firebase Storage
-const uploadImageToStorage = async (userId: string, imageId: string, dataUrl: string, type: 'originals' | 'colored'): Promise<string> => {
-  const storageRef = ref(storage, `users/${userId}/${type}/${imageId}.png`);
+/**
+ * Resizes and compresses an image to WebP format.
+ */
+const optimizeImage = (dataUrl: string, maxWidth: number, quality: number = 0.8): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.src = dataUrl;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width);
+        width = maxWidth;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error("Could not get canvas context"));
+        return;
+      }
+      
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/webp', quality));
+    };
+    img.onerror = (err) => reject(err);
+  });
+};
+
+const uploadImageToStorage = async (userId: string, imageId: string, dataUrl: string, type: 'originals' | 'colored' | 'thumbnails'): Promise<string> => {
+  const storageRef = ref(storage, `users/${userId}/${type}/${imageId}.webp`);
   await uploadString(storageRef, dataUrl, 'data_url');
   return getDownloadURL(storageRef);
 };
 
 export const getLibrary = async (userId: string): Promise<SavedPage[]> => {
   try {
-    // 1. Get all Themes first
     const themesRef = collection(db, "users", userId, "themes");
     const themesSnapshot = await getDocs(themesRef);
     
     let allPages: SavedPage[] = [];
 
-    // 2. For each theme, get the pages from the subcollection
-    // Note: In a production app with huge data, a Collection Group query would be better,
-    // but this is efficient enough for personal libraries.
     const promises = themesSnapshot.docs.map(async (themeDoc) => {
       const pagesRef = collection(db, "users", userId, "themes", themeDoc.id, "pages");
       const pagesSnapshot = await getDocs(pagesRef);
@@ -47,7 +79,6 @@ export const getLibrary = async (userId: string): Promise<SavedPage[]> => {
     const results = await Promise.all(promises);
     results.forEach(pages => allPages.push(...pages));
 
-    // Sort by date descending (newest first)
     return allPages.sort((a, b) => b.lastModified - a.lastModified);
   } catch (e) {
     console.error("Failed to fetch library from Firestore", e);
@@ -64,13 +95,20 @@ export const saveToLibrary = async (
   const pageId = image.id || Date.now().toString();
   const themeId = getThemeId(theme);
   
-  // 1. Upload the generated image to Firebase Storage
-  const storageUrl = await uploadImageToStorage(userId, pageId, image.url, 'originals');
+  const [optimizedOriginal, thumbnailData] = await Promise.all([
+    optimizeImage(image.url, 2048, 0.9),
+    optimizeImage(image.url, 300, 0.7)
+  ]);
+
+  const [storageUrl, thumbUrl] = await Promise.all([
+    uploadImageToStorage(userId, pageId, optimizedOriginal, 'originals'),
+    uploadImageToStorage(userId, pageId, thumbnailData, 'thumbnails')
+  ]);
 
   const newPage: SavedPage = {
     id: pageId,
     originalUrl: storageUrl,
-    thumbnailUrl: storageUrl,
+    thumbnailUrl: thumbUrl,
     theme,
     childName,
     createdAt: Date.now(),
@@ -79,15 +117,12 @@ export const saveToLibrary = async (
   };
 
   try {
-    // 2. Ensure the Theme Collection/Document exists
     const themeRef = doc(db, "users", userId, "themes", themeId);
     await setDoc(themeRef, { 
       name: theme, 
       lastModified: Date.now() 
     }, { merge: true });
 
-    // 3. Save the Page into the Theme's subcollection
-    // Path: users/{userId}/themes/{themeId}/pages/{pageId}
     const pageRef = doc(db, "users", userId, "themes", themeId, "pages", pageId);
     await setDoc(pageRef, newPage);
 
@@ -103,18 +138,23 @@ export const updatePageWork = async (userId: string, theme: string, id: string, 
   try {
     const themeId = getThemeId(theme);
 
-    // 1. Upload the colored work to Storage
-    const coloredStorageUrl = await uploadImageToStorage(userId, id, coloredDataUrl, 'colored');
+    const [optimizedColored, thumbnailData] = await Promise.all([
+      optimizeImage(coloredDataUrl, 2048, 0.85),
+      optimizeImage(coloredDataUrl, 300, 0.7)
+    ]);
 
-    // 2. Update Firestore document inside the specific theme subcollection
+    const [coloredStorageUrl, thumbUrl] = await Promise.all([
+      uploadImageToStorage(userId, id, optimizedColored, 'colored'),
+      uploadImageToStorage(userId, id, thumbnailData, 'thumbnails')
+    ]);
+
     const pageRef = doc(db, "users", userId, "themes", themeId, "pages", id);
     await updateDoc(pageRef, {
       coloredUrl: coloredStorageUrl,
-      thumbnailUrl: coloredStorageUrl,
+      thumbnailUrl: thumbUrl,
       lastModified: Date.now()
     });
 
-    // Update theme last modified too
     const themeRef = doc(db, "users", userId, "themes", themeId);
     await updateDoc(themeRef, { lastModified: Date.now() }).catch(() => {});
 
@@ -127,19 +167,52 @@ export const updatePageWork = async (userId: string, theme: string, id: string, 
 export const deletePage = async (userId: string, theme: string, id: string) => {
   try {
     const themeId = getThemeId(theme);
-
-    // 1. Delete Firestore entry from the theme subcollection
     await deleteDoc(doc(db, "users", userId, "themes", themeId, "pages", id));
     
-    // 2. Try to delete images from Storage
-    const originalRef = ref(storage, `users/${userId}/originals/${id}.png`);
-    const coloredRef = ref(storage, `users/${userId}/colored/${id}.png`);
+    const originalRef = ref(storage, `users/${userId}/originals/${id}.webp`);
+    const coloredRef = ref(storage, `users/${userId}/colored/${id}.webp`);
+    const thumbRef = ref(storage, `users/${userId}/thumbnails/${id}.webp`);
     
     deleteObject(originalRef).catch(() => {});
     deleteObject(coloredRef).catch(() => {});
-    
+    deleteObject(thumbRef).catch(() => {});
+
+    // Legacy support
+    const legacyOriginalRef = ref(storage, `users/${userId}/originals/${id}.png`);
+    deleteObject(legacyOriginalRef).catch(() => {});
+
   } catch (e) {
     console.error("Failed to delete page", e);
     throw e;
+  }
+};
+
+// --- ADMIN FUNCTIONS ---
+
+export const getAllUsers = async (): Promise<User[]> => {
+  try {
+    const usersRef = collection(db, "users");
+    const snapshot = await getDocs(usersRef);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+  } catch (e) {
+    console.error("Admin: Failed to get all users", e);
+    return [];
+  }
+};
+
+export const getRecentGlobalImages = async (limitCount = 20): Promise<SavedPage[]> => {
+  try {
+    // collectionGroup allows querying across all 'pages' subcollections
+    const pagesQuery = query(
+      collectionGroup(db, 'pages'), 
+      orderBy('createdAt', 'desc'), 
+      limit(limitCount)
+    );
+    const snapshot = await getDocs(pagesQuery);
+    return snapshot.docs.map(doc => doc.data() as SavedPage);
+  } catch (e) {
+    // Indexing might be required for this query in Firestore
+    console.warn("Admin: Index required for collectionGroup query. Check console.", e);
+    return [];
   }
 };
