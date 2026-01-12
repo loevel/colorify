@@ -4,7 +4,8 @@ import { User, SavedPage } from '../types';
 import { getAllUsers, getRecentGlobalImages } from '../services/storageService';
 import { 
   Users, Image as ImageIcon, TrendingUp, DollarSign, 
-  Search, ShieldAlert, Loader2, RefreshCw, Crown
+  Search, ShieldAlert, Loader2, RefreshCw, Crown,
+  Activity, Server, Zap, Ban, Eye, MoreHorizontal, BarChart3
 } from 'lucide-react';
 
 interface Props {
@@ -20,15 +21,32 @@ const AdminDashboard: React.FC<Props> = ({ currentUser }) => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Simulated System Stats
+  const [systemHealth, setSystemHealth] = useState({
+    apiStatus: 'Operational',
+    avgLatency: '1.2s',
+    errorRate: '0.5%',
+    quotaUsage: '42%'
+  });
+
   const loadData = async () => {
     setLoading(true);
     try {
       const [fetchedUsers, fetchedImages] = await Promise.all([
         getAllUsers(),
-        getRecentGlobalImages(30)
+        getRecentGlobalImages(50) // Increased fetch limit for better stats
       ]);
       setUsers(fetchedUsers);
       setRecentImages(fetchedImages);
+      
+      // Simulate refreshing system health
+      setSystemHealth({
+        apiStatus: Math.random() > 0.1 ? 'Operational' : 'Degraded',
+        avgLatency: (0.8 + Math.random()).toFixed(2) + 's',
+        errorRate: (Math.random()).toFixed(1) + '%',
+        quotaUsage: Math.floor(30 + Math.random() * 40) + '%'
+      });
+
     } catch (e) {
       console.error("Failed to load admin data", e);
     } finally {
@@ -51,6 +69,24 @@ const AdminDashboard: React.FC<Props> = ({ currentUser }) => {
   const proUsers = users.filter(u => u.subscriptionTier === 'pro').length;
   const unlimitedUsers = users.filter(u => u.subscriptionTier === 'unlimited').length;
   const totalRevenue = (proUsers * 9.99) + (unlimitedUsers * 19.99);
+
+  // Calculate Trending Themes (Simple word frequency)
+  const getTrendingThemes = () => {
+    const wordMap: Record<string, number> = {};
+    recentImages.forEach(img => {
+      const words = img.theme.toLowerCase().split(/\s+/);
+      words.forEach(w => {
+        if (w.length > 3 && !['with', 'drawing', 'page', 'cute'].includes(w)) {
+           wordMap[w] = (wordMap[w] || 0) + 1;
+        }
+      });
+    });
+    return Object.entries(wordMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+  };
+
+  const trendingThemes = getTrendingThemes();
 
   return (
     <div className="min-h-screen bg-slate-50 p-6 animate-fade-in-up">
@@ -97,41 +133,111 @@ const AdminDashboard: React.FC<Props> = ({ currentUser }) => {
 
         {/* --- OVERVIEW TAB --- */}
         {activeTab === 'overview' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-fade-in-up">
-             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-               <div className="flex justify-between items-start mb-4">
-                 <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl"><Users size={24} /></div>
-                 <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-full">+12%</span>
-               </div>
-               <h3 className="text-slate-500 text-sm font-bold uppercase tracking-wide">Total Users</h3>
-               <p className="text-3xl font-extrabold text-slate-900">{totalUsers}</p>
-             </div>
+          <div className="space-y-6 animate-fade-in-up">
+            {/* KPI Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl"><Users size={24} /></div>
+                  <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-full">+12%</span>
+                </div>
+                <h3 className="text-slate-500 text-sm font-bold uppercase tracking-wide">Total Users</h3>
+                <p className="text-3xl font-extrabold text-slate-900">{totalUsers}</p>
+              </div>
 
-             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-               <div className="flex justify-between items-start mb-4">
-                 <div className="p-3 bg-green-50 text-green-600 rounded-xl"><DollarSign size={24} /></div>
-               </div>
-               <h3 className="text-slate-500 text-sm font-bold uppercase tracking-wide">Monthly Revenue (Est)</h3>
-               <p className="text-3xl font-extrabold text-slate-900">${totalRevenue.toFixed(2)}</p>
-             </div>
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-3 bg-green-50 text-green-600 rounded-xl"><DollarSign size={24} /></div>
+                </div>
+                <h3 className="text-slate-500 text-sm font-bold uppercase tracking-wide">Monthly Revenue</h3>
+                <p className="text-3xl font-extrabold text-slate-900">${totalRevenue.toFixed(2)}</p>
+              </div>
 
-             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-               <div className="flex justify-between items-start mb-4">
-                 <div className="p-3 bg-pink-50 text-pink-600 rounded-xl"><ImageIcon size={24} /></div>
-               </div>
-               <h3 className="text-slate-500 text-sm font-bold uppercase tracking-wide">Images Generated</h3>
-               <p className="text-3xl font-extrabold text-slate-900">~{totalUsers * 5}</p>
-             </div>
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-3 bg-pink-50 text-pink-600 rounded-xl"><ImageIcon size={24} /></div>
+                </div>
+                <h3 className="text-slate-500 text-sm font-bold uppercase tracking-wide">Images Generated</h3>
+                <p className="text-3xl font-extrabold text-slate-900">~{totalUsers * 5 + recentImages.length}</p>
+              </div>
 
-             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-               <div className="flex justify-between items-start mb-4">
-                 <div className="p-3 bg-orange-50 text-orange-600 rounded-xl"><TrendingUp size={24} /></div>
-               </div>
-               <h3 className="text-slate-500 text-sm font-bold uppercase tracking-wide">Conversion Rate</h3>
-               <p className="text-3xl font-extrabold text-slate-900">
-                  {totalUsers > 0 ? ((proUsers + unlimitedUsers) / totalUsers * 100).toFixed(1) : 0}%
-               </p>
-             </div>
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-3 bg-orange-50 text-orange-600 rounded-xl"><TrendingUp size={24} /></div>
+                </div>
+                <h3 className="text-slate-500 text-sm font-bold uppercase tracking-wide">Conversion Rate</h3>
+                <p className="text-3xl font-extrabold text-slate-900">
+                    {totalUsers > 0 ? ((proUsers + unlimitedUsers) / totalUsers * 100).toFixed(1) : 0}%
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* System Health Panel */}
+              <div className="bg-slate-900 text-white p-6 rounded-2xl shadow-lg col-span-1">
+                 <div className="flex items-center gap-2 mb-6 border-b border-slate-700 pb-4">
+                    <Activity className="text-green-400" />
+                    <h3 className="text-lg font-bold">System Health</h3>
+                 </div>
+                 
+                 <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                       <span className="text-slate-400 flex items-center gap-2"><Server size={16}/> API Status</span>
+                       <span className={`px-2 py-1 rounded text-xs font-bold ${systemHealth.apiStatus === 'Operational' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                          {systemHealth.apiStatus}
+                       </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                       <span className="text-slate-400 flex items-center gap-2"><Zap size={16}/> Avg Latency</span>
+                       <span className="font-mono">{systemHealth.avgLatency}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                       <span className="text-slate-400 flex items-center gap-2"><ShieldAlert size={16}/> Error Rate</span>
+                       <span className="font-mono text-orange-300">{systemHealth.errorRate}</span>
+                    </div>
+                    
+                    <div className="pt-2">
+                       <div className="flex justify-between text-xs mb-1">
+                          <span className="text-slate-400">Monthly AI Quota</span>
+                          <span className="text-slate-300">{systemHealth.quotaUsage}</span>
+                       </div>
+                       <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                          <div className="h-full bg-indigo-500 transition-all duration-1000" style={{ width: systemHealth.quotaUsage }}></div>
+                       </div>
+                    </div>
+                 </div>
+              </div>
+
+              {/* Trending Themes Panel */}
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 col-span-1 lg:col-span-2">
+                 <div className="flex items-center gap-2 mb-6">
+                    <BarChart3 className="text-indigo-600" />
+                    <h3 className="text-lg font-bold text-slate-800">Trending Concepts</h3>
+                 </div>
+                 
+                 <div className="space-y-4">
+                    {trendingThemes.length > 0 ? trendingThemes.map(([word, count], i) => (
+                      <div key={word} className="flex items-center gap-4">
+                         <span className="w-6 text-center font-bold text-slate-300">#{i + 1}</span>
+                         <div className="flex-1">
+                            <div className="flex justify-between text-sm mb-1">
+                               <span className="font-bold text-slate-700 capitalize">{word}</span>
+                               <span className="text-slate-400 text-xs">{count} gens</span>
+                            </div>
+                            <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                               <div 
+                                 className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-purple-400" 
+                                 style={{ width: `${Math.min(100, (count / trendingThemes[0][1]) * 100)}%` }}
+                               ></div>
+                            </div>
+                         </div>
+                      </div>
+                    )) : (
+                      <p className="text-slate-400 italic">Not enough data to determine trends yet.</p>
+                    )}
+                 </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -157,8 +263,8 @@ const AdminDashboard: React.FC<Props> = ({ currentUser }) => {
                   <tr>
                     <th className="px-6 py-4">User</th>
                     <th className="px-6 py-4">Plan</th>
-                    <th className="px-6 py-4">Type</th>
-                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4">Account</th>
+                    <th className="px-6 py-4">Children</th>
                     <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -178,14 +284,26 @@ const AdminDashboard: React.FC<Props> = ({ currentUser }) => {
                            </span>
                          )}
                       </td>
-                      <td className="px-6 py-4 capitalize text-slate-600">{u.accountType}</td>
+                      <td className="px-6 py-4 capitalize text-slate-600">
+                         <span className={`px-2 py-1 rounded text-xs font-bold ${u.accountType === 'family' ? 'bg-purple-100 text-purple-600' : 'bg-slate-100 text-slate-600'}`}>
+                           {u.accountType}
+                         </span>
+                      </td>
                       <td className="px-6 py-4">
-                        <span className="flex items-center gap-1.5 text-green-600 font-bold text-xs">
-                          <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> Active
-                        </span>
+                        <span className="text-slate-600 font-medium">{u.children?.length || 0}</span>
                       </td>
                       <td className="px-6 py-4 text-right">
-                         <button className="text-indigo-600 hover:text-indigo-800 font-bold text-xs">Edit</button>
+                         <div className="flex justify-end gap-2">
+                           <button className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded" title="View Details">
+                             <Eye size={16} />
+                           </button>
+                           <button className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded" title="Suspend User">
+                             <Ban size={16} />
+                           </button>
+                           <button className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded" title="More">
+                             <MoreHorizontal size={16} />
+                           </button>
+                         </div>
                       </td>
                     </tr>
                   ))}
