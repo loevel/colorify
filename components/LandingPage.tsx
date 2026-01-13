@@ -14,14 +14,14 @@ const FAQItem: React.FC<{ question: string; answer: string }> = ({ question, ans
 
   return (
     <div className="border-b border-slate-200">
-      <button 
+      <button
         onClick={() => setIsOpen(!isOpen)}
         className="w-full py-6 flex items-center justify-between text-left focus:outline-none"
       >
         <span className="text-lg font-bold text-slate-800">{question}</span>
         {isOpen ? <ChevronUp className="text-indigo-600" /> : <ChevronDown className="text-slate-400" />}
       </button>
-      <div 
+      <div
         className={`overflow-hidden transition-all duration-300 ${isOpen ? 'max-h-96 pb-6' : 'max-h-0'}`}
       >
         <p className="text-slate-600 leading-relaxed">{answer}</p>
@@ -58,8 +58,8 @@ const LandingPage: React.FC<Props> = ({ onGetStarted, onNavigate }) => {
   const [pricingMode, setPricingMode] = useState<'personal' | 'family'>('personal');
   const [activeCategory, setActiveCategory] = useState('All');
 
-  const filteredShowcase = activeCategory === 'All' 
-    ? SHOWCASE_ITEMS 
+  const filteredShowcase = activeCategory === 'All'
+    ? SHOWCASE_ITEMS
     : SHOWCASE_ITEMS.filter(item => item.category === activeCategory);
 
   return (
@@ -82,7 +82,7 @@ const LandingPage: React.FC<Props> = ({ onGetStarted, onNavigate }) => {
               <Palette size={24} />
             </div>
             <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-600 to-indigo-600 comic-font tracking-tight">
-              ColorCraft
+              KiddoDraw
             </span>
           </div>
           <div className="hidden md:flex items-center gap-8">
@@ -91,13 +91,13 @@ const LandingPage: React.FC<Props> = ({ onGetStarted, onNavigate }) => {
             <button onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="text-slate-600 hover:text-indigo-600 font-medium text-sm transition-colors">Pricing</button>
           </div>
           <div className="flex items-center gap-4">
-            <button 
+            <button
               onClick={onGetStarted}
               className="text-slate-600 hover:text-indigo-600 font-bold text-sm transition-colors hidden sm:block"
             >
               Log In
             </button>
-            <button 
+            <button
               onClick={onGetStarted}
               className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full font-bold text-sm shadow-xl shadow-indigo-200 transition-all hover:scale-105 active:scale-95"
             >
@@ -111,12 +111,12 @@ const LandingPage: React.FC<Props> = ({ onGetStarted, onNavigate }) => {
       <div className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-indigo-50 via-white to-white overflow-hidden relative">
         {/* Background Elements */}
         <div className="absolute top-20 right-0 -mr-20 opacity-10 hidden lg:block pointer-events-none animate-pulse">
-           <svg width="600" height="600" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-             <path fill="#4F46E5" d="M44.7,-76.4C58.9,-69.2,71.8,-59.1,79.6,-46.3C87.4,-33.5,90.1,-18,88.5,-3.3C86.9,11.4,81,25.3,71.5,36.4C62,47.5,48.9,55.8,35.6,63.1C22.3,70.4,8.8,76.7,-3.7,83.1C-16.2,89.5,-27.7,96,-38.3,92.5C-48.9,89,-58.6,75.5,-66.6,61.9C-74.6,48.3,-80.9,34.6,-83.1,20.2C-85.3,5.8,-83.4,-9.3,-76.3,-22.3C-69.2,-35.3,-56.9,-46.2,-44.1,-53.9C-31.3,-61.6,-18,-66.1,-3.5,-60.1C11,-54,22,-37.4,30.5,-32.8" transform="translate(100 100)" />
-           </svg>
+          <svg width="600" height="600" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <path fill="#4F46E5" d="M44.7,-76.4C58.9,-69.2,71.8,-59.1,79.6,-46.3C87.4,-33.5,90.1,-18,88.5,-3.3C86.9,11.4,81,25.3,71.5,36.4C62,47.5,48.9,55.8,35.6,63.1C22.3,70.4,8.8,76.7,-3.7,83.1C-16.2,89.5,-27.7,96,-38.3,92.5C-48.9,89,-58.6,75.5,-66.6,61.9C-74.6,48.3,-80.9,34.6,-83.1,20.2C-85.3,5.8,-83.4,-9.3,-76.3,-22.3C-69.2,-35.3,-56.9,-46.2,-44.1,-53.9C-31.3,-61.6,-18,-66.1,-3.5,-60.1C11,-54,22,-37.4,30.5,-32.8" transform="translate(100 100)" />
+          </svg>
         </div>
         <div className="absolute top-40 left-0 -ml-20 opacity-10 hidden lg:block pointer-events-none">
-           <div className="w-64 h-64 rounded-full bg-pink-400 blur-3xl"></div>
+          <div className="w-64 h-64 rounded-full bg-pink-400 blur-3xl"></div>
         </div>
 
         <div className="max-w-7xl mx-auto text-center relative z-10">
@@ -127,63 +127,63 @@ const LandingPage: React.FC<Props> = ({ onGetStarted, onNavigate }) => {
             </span>
             <span>New: AI Coloring Studio is Live!</span>
           </div>
-          
+
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-extrabold text-slate-900 mb-8 comic-font leading-[1.1] animate-fade-in-up tracking-tight">
-            Dream it. <br className="md:hidden"/>
+            Dream it. <br className="md:hidden" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500">
               Draw it.
-            </span> <br/>
+            </span> <br />
             Color it.
           </h1>
-          
+
           <p className="text-xl md:text-2xl text-slate-600 max-w-3xl mx-auto mb-12 leading-relaxed animate-fade-in-up animation-delay-100">
             The world's most magical coloring book generator. Instantly turn your child's wildest imagination into professional-quality, printable coloring pages using AI.
           </p>
-          
+
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up animation-delay-200">
-            <button 
+            <button
               onClick={onGetStarted}
               className="w-full sm:w-auto px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold text-lg shadow-xl shadow-indigo-200 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-2 group"
             >
-              Start Creating for Free 
+              Start Creating for Free
               <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
             </button>
-            <button 
-               onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
-               className="w-full sm:w-auto px-8 py-4 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-2xl font-bold text-lg transition-all flex items-center justify-center gap-2 hover:shadow-lg"
+            <button
+              onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
+              className="w-full sm:w-auto px-8 py-4 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-2xl font-bold text-lg transition-all flex items-center justify-center gap-2 hover:shadow-lg"
             >
-               <PlayCircle size={20} className="text-indigo-500" />
-               See How It Works
+              <PlayCircle size={20} className="text-indigo-500" />
+              See How It Works
             </button>
           </div>
 
           {/* Social Proof Bar */}
           <div className="mt-16 pt-8 border-t border-slate-200/60 max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-center gap-8 md:gap-16 text-slate-400 grayscale opacity-80 animate-fade-in-up animation-delay-300">
-             <div className="flex items-center gap-2">
-                <div className="flex -space-x-2">
-                   {[1,2,3,4].map(i => (
-                     <div key={i} className="w-8 h-8 rounded-full bg-slate-200 border-2 border-white overflow-hidden">
-                       <img src={`https://i.pravatar.cc/100?img=${i + 10}`} alt="User" />
-                     </div>
-                   ))}
-                </div>
-                <div className="text-sm">
-                   <span className="block font-bold text-slate-600">10,000+</span>
-                   <span>Happy Parents</span>
-                </div>
-             </div>
-             <div className="h-8 w-px bg-slate-200 hidden md:block"></div>
-             <div className="flex items-center gap-2">
-               <div className="flex text-yellow-400">
-                 {[1,2,3,4,5].map(i => <Star key={i} size={16} fill="currentColor" />)}
-               </div>
-               <span className="font-bold text-slate-600">4.9/5 Rating</span>
-             </div>
-             <div className="h-8 w-px bg-slate-200 hidden md:block"></div>
-             <div className="flex items-center gap-2">
-               <Shield size={20} className="text-green-500" />
-               <span className="font-bold text-slate-600">Kid-Safe Certified</span>
-             </div>
+            <div className="flex items-center gap-2">
+              <div className="flex -space-x-2">
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="w-8 h-8 rounded-full bg-slate-200 border-2 border-white overflow-hidden">
+                    <img src={`https://i.pravatar.cc/100?img=${i + 10}`} alt="User" />
+                  </div>
+                ))}
+              </div>
+              <div className="text-sm">
+                <span className="block font-bold text-slate-600">10,000+</span>
+                <span>Happy Parents</span>
+              </div>
+            </div>
+            <div className="h-8 w-px bg-slate-200 hidden md:block"></div>
+            <div className="flex items-center gap-2">
+              <div className="flex text-yellow-400">
+                {[1, 2, 3, 4, 5].map(i => <Star key={i} size={16} fill="currentColor" />)}
+              </div>
+              <span className="font-bold text-slate-600">4.9/5 Rating</span>
+            </div>
+            <div className="h-8 w-px bg-slate-200 hidden md:block"></div>
+            <div className="flex items-center gap-2">
+              <Shield size={20} className="text-green-500" />
+              <span className="font-bold text-slate-600">Kid-Safe Certified</span>
+            </div>
           </div>
         </div>
       </div>
@@ -192,19 +192,19 @@ const LandingPage: React.FC<Props> = ({ onGetStarted, onNavigate }) => {
       <div className="border-y border-slate-100 bg-slate-50/50 overflow-hidden relative py-5">
         <div className="max-w-7xl mx-auto flex items-center relative">
           <div className="hidden md:flex items-center gap-2 text-indigo-600 font-bold whitespace-nowrap z-20 bg-slate-50/50 pr-6 pl-8">
-             <Zap size={16} className="animate-pulse" />
-             <span className="text-xs uppercase tracking-widest">Live Requests</span>
+            <Zap size={16} className="animate-pulse" />
+            <span className="text-xs uppercase tracking-widest">Live Requests</span>
           </div>
-          
+
           <div className="flex-1 overflow-hidden relative">
             <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-slate-50 to-transparent z-10"></div>
             <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-slate-50 to-transparent z-10"></div>
-            
+
             <div className="flex animate-infinite-scroll w-max hover:[animation-play-state:paused]">
               {[...LIVE_PROMPTS, ...LIVE_PROMPTS, ...LIVE_PROMPTS].map((prompt, i) => (
                 <div key={i} className="flex items-center gap-2 mx-3 px-5 py-2 bg-white rounded-full border border-slate-200 shadow-sm text-slate-600 text-sm whitespace-nowrap">
-                   <Search size={14} className="text-slate-400" />
-                   "{prompt}"
+                  <Search size={14} className="text-slate-400" />
+                  "{prompt}"
                 </div>
               ))}
             </div>
@@ -214,68 +214,67 @@ const LandingPage: React.FC<Props> = ({ onGetStarted, onNavigate }) => {
 
       {/* UPDATED: Image Showcase Validation */}
       <div id="showcase" className="py-24 bg-slate-50 relative overflow-hidden">
-         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-10">
-               <span className="text-indigo-600 font-bold tracking-wider uppercase text-sm">Visual Validation</span>
-               <h2 className="text-4xl font-bold text-slate-900 mt-2 mb-6 comic-font">Endless Possibilities</h2>
-               <p className="text-slate-600 max-w-2xl mx-auto text-lg mb-8">
-                 From space adventures to underwater castles, see what our AI can create in seconds.
-               </p>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-10">
+            <span className="text-indigo-600 font-bold tracking-wider uppercase text-sm">Visual Validation</span>
+            <h2 className="text-4xl font-bold text-slate-900 mt-2 mb-6 comic-font">Endless Possibilities</h2>
+            <p className="text-slate-600 max-w-2xl mx-auto text-lg mb-8">
+              From space adventures to underwater castles, see what our AI can create in seconds.
+            </p>
 
-               {/* Category Filters */}
-               <div className="flex flex-wrap justify-center gap-3 mb-12">
-                 {['All', 'Animals', 'Space', 'Fantasy', 'Vehicles'].map((cat) => (
-                   <button
-                     key={cat}
-                     onClick={() => setActiveCategory(cat)}
-                     className={`px-6 py-2 rounded-full text-sm font-bold transition-all ${
-                       activeCategory === cat 
-                         ? 'bg-slate-900 text-white shadow-md transform scale-105' 
-                         : 'bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-900 border border-slate-200'
-                     }`}
-                   >
-                     {cat}
-                   </button>
-                 ))}
-               </div>
+            {/* Category Filters */}
+            <div className="flex flex-wrap justify-center gap-3 mb-12">
+              {['All', 'Animals', 'Space', 'Fantasy', 'Vehicles'].map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  className={`px-6 py-2 rounded-full text-sm font-bold transition-all ${activeCategory === cat
+                      ? 'bg-slate-900 text-white shadow-md transform scale-105'
+                      : 'bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-900 border border-slate-200'
+                    }`}
+                >
+                  {cat}
+                </button>
+              ))}
             </div>
+          </div>
 
-            {/* Gallery Grid - Masonry style feel */}
-            <div className="columns-2 md:columns-4 gap-4 space-y-4">
-               {filteredShowcase.map((item) => (
-                 <div key={item.id} className="break-inside-avoid relative group rounded-2xl overflow-hidden cursor-pointer shadow-md bg-white border border-slate-100">
-                    <div className="relative overflow-hidden">
-                       <img 
-                          src={item.url} 
-                          alt={item.prompt} 
-                          className="w-full h-auto object-cover transition-all duration-700 group-hover:scale-110"
-                          style={{ filter: 'grayscale(100%) contrast(125%) brightness(110%)' }}
-                       />
-                       {/* Overlay on Hover */}
-                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
-                          <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
-                             <div className="flex items-center gap-2 text-indigo-300 text-xs font-bold uppercase tracking-wider mb-1">
-                                <Wand2 size={12} /> AI Prompt
-                             </div>
-                             <p className="text-white text-sm font-medium leading-snug">"{item.prompt}"</p>
-                             <div className="mt-2 flex items-center gap-2">
-                                <span className="bg-white/20 backdrop-blur-md px-2 py-1 rounded text-[10px] text-white font-bold">
-                                  Created by {item.artist}
-                                </span>
-                             </div>
-                          </div>
-                       </div>
+          {/* Gallery Grid - Masonry style feel */}
+          <div className="columns-2 md:columns-4 gap-4 space-y-4">
+            {filteredShowcase.map((item) => (
+              <div key={item.id} className="break-inside-avoid relative group rounded-2xl overflow-hidden cursor-pointer shadow-md bg-white border border-slate-100">
+                <div className="relative overflow-hidden">
+                  <img
+                    src={item.url}
+                    alt={item.prompt}
+                    className="w-full h-auto object-cover transition-all duration-700 group-hover:scale-110"
+                    style={{ filter: 'grayscale(100%) contrast(125%) brightness(110%)' }}
+                  />
+                  {/* Overlay on Hover */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
+                    <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                      <div className="flex items-center gap-2 text-indigo-300 text-xs font-bold uppercase tracking-wider mb-1">
+                        <Wand2 size={12} /> AI Prompt
+                      </div>
+                      <p className="text-white text-sm font-medium leading-snug">"{item.prompt}"</p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="bg-white/20 backdrop-blur-md px-2 py-1 rounded text-[10px] text-white font-bold">
+                          Created by {item.artist}
+                        </span>
+                      </div>
                     </div>
-                 </div>
-               ))}
-            </div>
-            
-            <div className="text-center mt-12">
-               <button onClick={onGetStarted} className="inline-flex items-center gap-2 text-indigo-600 font-bold hover:text-indigo-700 transition-colors border-b-2 border-indigo-200 hover:border-indigo-600 pb-1 group">
-                  Create Your Own <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-               </button>
-            </div>
-         </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center mt-12">
+            <button onClick={onGetStarted} className="inline-flex items-center gap-2 text-indigo-600 font-bold hover:text-indigo-700 transition-colors border-b-2 border-indigo-200 hover:border-indigo-600 pb-1 group">
+              Create Your Own <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Feature Grid */}
@@ -296,7 +295,7 @@ const LandingPage: React.FC<Props> = ({ onGetStarted, onNavigate }) => {
                 Describe a scene and watch as our advanced AI generates a professional-grade coloring outline in seconds. No waiting, just creating.
               </p>
             </div>
-            
+
             <div className="group p-8 rounded-[2rem] bg-white border border-slate-100 shadow-xl shadow-slate-200/50 hover:shadow-2xl hover:shadow-indigo-200/50 hover:-translate-y-2 transition-all duration-300">
               <div className="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
                 <Printer size={28} />
@@ -324,7 +323,7 @@ const LandingPage: React.FC<Props> = ({ onGetStarted, onNavigate }) => {
       <div className="py-24 bg-indigo-900 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-600 rounded-full blur-[100px] opacity-30"></div>
-        
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-white mb-4 comic-font">Loved by Families</h2>
@@ -334,7 +333,7 @@ const LandingPage: React.FC<Props> = ({ onGetStarted, onNavigate }) => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="bg-indigo-800/50 backdrop-blur-sm p-8 rounded-3xl border border-indigo-700">
               <div className="flex text-yellow-400 mb-4">
-                {[1,2,3,4,5].map(i => <Star key={i} size={16} fill="currentColor" />)}
+                {[1, 2, 3, 4, 5].map(i => <Star key={i} size={16} fill="currentColor" />)}
               </div>
               <p className="text-indigo-100 text-lg mb-6 italic">"My daughter wanted a coloring page of a 'Ballerina T-Rex'. I couldn't find it anywhere. ColorCraft made it in 5 seconds. Incredible!"</p>
               <div className="flex items-center gap-3">
@@ -348,7 +347,7 @@ const LandingPage: React.FC<Props> = ({ onGetStarted, onNavigate }) => {
 
             <div className="bg-indigo-800/50 backdrop-blur-sm p-8 rounded-3xl border border-indigo-700 transform md:-translate-y-4 shadow-2xl">
               <div className="flex text-yellow-400 mb-4">
-                {[1,2,3,4,5].map(i => <Star key={i} size={16} fill="currentColor" />)}
+                {[1, 2, 3, 4, 5].map(i => <Star key={i} size={16} fill="currentColor" />)}
               </div>
               <p className="text-indigo-100 text-lg mb-6 italic">"The digital coloring studio is a lifesaver for long car rides. We save so much paper, and the 'glitter' brush is a huge hit."</p>
               <div className="flex items-center gap-3">
@@ -362,7 +361,7 @@ const LandingPage: React.FC<Props> = ({ onGetStarted, onNavigate }) => {
 
             <div className="bg-indigo-800/50 backdrop-blur-sm p-8 rounded-3xl border border-indigo-700">
               <div className="flex text-yellow-400 mb-4">
-                {[1,2,3,4,5].map(i => <Star key={i} size={16} fill="currentColor" />)}
+                {[1, 2, 3, 4, 5].map(i => <Star key={i} size={16} fill="currentColor" />)}
               </div>
               <p className="text-indigo-100 text-lg mb-6 italic">"I use this for my kindergarten class. We create pages based on what we learn that week. The kids absolutely love seeing their ideas come to life."</p>
               <div className="flex items-center gap-3">
@@ -380,64 +379,64 @@ const LandingPage: React.FC<Props> = ({ onGetStarted, onNavigate }) => {
       {/* How it Works */}
       <div id="how-it-works" className="py-24 bg-white relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-           <div className="flex flex-col md:flex-row items-center gap-16">
-             <div className="flex-1">
-               <span className="text-indigo-600 font-bold tracking-wider uppercase text-sm">Simple Process</span>
-               <h2 className="text-4xl font-bold mb-6 mt-2 comic-font text-slate-900">How Magic Happens</h2>
-               <p className="text-slate-600 text-lg mb-10">Three simple steps to endless creativity. No artistic skills required.</p>
-               
-               <div className="space-y-8">
-                 <div className="flex gap-6">
-                   <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex-shrink-0 flex items-center justify-center font-bold text-xl shadow-sm">1</div>
-                   <div>
-                     <h4 className="font-bold text-xl text-slate-800 mb-2">Enter a Theme</h4>
-                     <p className="text-slate-600">Type anything like "A cat riding a skateboard in space" or "Underwater Castle".</p>
-                   </div>
-                 </div>
-                 <div className="flex gap-6">
-                   <div className="w-12 h-12 rounded-2xl bg-pink-50 text-pink-600 flex-shrink-0 flex items-center justify-center font-bold text-xl shadow-sm">2</div>
-                   <div>
-                     <h4 className="font-bold text-xl text-slate-800 mb-2">AI Creates the Art</h4>
-                     <p className="text-slate-600">Our advanced Gemini AI drafts unique, high-quality outlines instantly.</p>
-                   </div>
-                 </div>
-                 <div className="flex gap-6">
-                   <div className="w-12 h-12 rounded-2xl bg-green-50 text-green-600 flex-shrink-0 flex items-center justify-center font-bold text-xl shadow-sm">3</div>
-                   <div>
-                     <h4 className="font-bold text-xl text-slate-800 mb-2">Print or Color</h4>
-                     <p className="text-slate-600">Save to your library, print it out as a PDF, or color on your tablet.</p>
-                   </div>
-                 </div>
-               </div>
-               
-               <button 
-                onClick={onGetStarted}
-                className="mt-12 px-8 py-4 bg-slate-900 text-white rounded-2xl font-bold shadow-lg hover:bg-slate-800 transition-colors flex items-center gap-2"
-               >
-                 Try it Now <ArrowRight size={20} />
-               </button>
-             </div>
-             
-             <div className="flex-1 relative">
-                <div className="absolute inset-0 bg-gradient-to-tr from-indigo-200 to-pink-200 blur-[60px] opacity-60 rounded-full"></div>
-                <div className="relative bg-white rounded-[2.5rem] p-6 shadow-2xl border border-slate-100 transform rotate-2 hover:rotate-0 transition-transform duration-500">
-                  <div className="aspect-[3/4] bg-slate-50 rounded-2xl flex items-center justify-center border-2 border-dashed border-slate-200 overflow-hidden relative group">
-                     <img 
-                      src="https://images.unsplash.com/photo-1629196914375-f7e48f477b6d?q=80&w=600&auto=format&fit=crop" 
-                      className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700"
-                      alt="Demo"
-                     />
-                     <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent opacity-90"></div>
-                     <div className="absolute bottom-8 left-8 right-8">
-                       <div className="bg-white/80 backdrop-blur p-4 rounded-xl shadow-lg border border-white/50">
-                         <div className="h-2 w-24 bg-slate-200 rounded mb-2"></div>
-                         <div className="h-2 w-16 bg-slate-200 rounded"></div>
-                       </div>
-                     </div>
+          <div className="flex flex-col md:flex-row items-center gap-16">
+            <div className="flex-1">
+              <span className="text-indigo-600 font-bold tracking-wider uppercase text-sm">Simple Process</span>
+              <h2 className="text-4xl font-bold mb-6 mt-2 comic-font text-slate-900">How Magic Happens</h2>
+              <p className="text-slate-600 text-lg mb-10">Three simple steps to endless creativity. No artistic skills required.</p>
+
+              <div className="space-y-8">
+                <div className="flex gap-6">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex-shrink-0 flex items-center justify-center font-bold text-xl shadow-sm">1</div>
+                  <div>
+                    <h4 className="font-bold text-xl text-slate-800 mb-2">Enter a Theme</h4>
+                    <p className="text-slate-600">Type anything like "A cat riding a skateboard in space" or "Underwater Castle".</p>
                   </div>
                 </div>
-             </div>
-           </div>
+                <div className="flex gap-6">
+                  <div className="w-12 h-12 rounded-2xl bg-pink-50 text-pink-600 flex-shrink-0 flex items-center justify-center font-bold text-xl shadow-sm">2</div>
+                  <div>
+                    <h4 className="font-bold text-xl text-slate-800 mb-2">AI Creates the Art</h4>
+                    <p className="text-slate-600">Our advanced Gemini AI drafts unique, high-quality outlines instantly.</p>
+                  </div>
+                </div>
+                <div className="flex gap-6">
+                  <div className="w-12 h-12 rounded-2xl bg-green-50 text-green-600 flex-shrink-0 flex items-center justify-center font-bold text-xl shadow-sm">3</div>
+                  <div>
+                    <h4 className="font-bold text-xl text-slate-800 mb-2">Print or Color</h4>
+                    <p className="text-slate-600">Save to your library, print it out as a PDF, or color on your tablet.</p>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={onGetStarted}
+                className="mt-12 px-8 py-4 bg-slate-900 text-white rounded-2xl font-bold shadow-lg hover:bg-slate-800 transition-colors flex items-center gap-2"
+              >
+                Try it Now <ArrowRight size={20} />
+              </button>
+            </div>
+
+            <div className="flex-1 relative">
+              <div className="absolute inset-0 bg-gradient-to-tr from-indigo-200 to-pink-200 blur-[60px] opacity-60 rounded-full"></div>
+              <div className="relative bg-white rounded-[2.5rem] p-6 shadow-2xl border border-slate-100 transform rotate-2 hover:rotate-0 transition-transform duration-500">
+                <div className="aspect-[3/4] bg-slate-50 rounded-2xl flex items-center justify-center border-2 border-dashed border-slate-200 overflow-hidden relative group">
+                  <img
+                    src="https://images.unsplash.com/photo-1629196914375-f7e48f477b6d?q=80&w=600&auto=format&fit=crop"
+                    className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700"
+                    alt="Demo"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent opacity-90"></div>
+                  <div className="absolute bottom-8 left-8 right-8">
+                    <div className="bg-white/80 backdrop-blur p-4 rounded-xl shadow-lg border border-white/50">
+                      <div className="h-2 w-24 bg-slate-200 rounded mb-2"></div>
+                      <div className="h-2 w-16 bg-slate-200 rounded"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -453,40 +452,38 @@ const LandingPage: React.FC<Props> = ({ onGetStarted, onNavigate }) => {
             <div className="bg-white p-1.5 rounded-2xl border border-slate-200 inline-flex shadow-sm relative z-10">
               <button
                 onClick={() => setPricingMode('personal')}
-                className={`px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${
-                  pricingMode === 'personal' 
-                    ? 'bg-slate-900 text-white shadow-lg transform scale-105' 
+                className={`px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${pricingMode === 'personal'
+                    ? 'bg-slate-900 text-white shadow-lg transform scale-105'
                     : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-                }`}
+                  }`}
               >
                 Personal
               </button>
               <button
                 onClick={() => setPricingMode('family')}
-                className={`px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 ${
-                  pricingMode === 'family' 
-                    ? 'bg-indigo-600 text-white shadow-lg transform scale-105' 
+                className={`px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 ${pricingMode === 'family'
+                    ? 'bg-indigo-600 text-white shadow-lg transform scale-105'
                     : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-                }`}
+                  }`}
               >
                 <Users size={18} /> Family
               </button>
             </div>
             {pricingMode === 'family' && (
-               <div className="absolute -bottom-8 left-0 right-0 text-center animate-fade-in-up">
-                 <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">
-                    Includes up to 5 child profiles
-                 </span>
-               </div>
+              <div className="absolute -bottom-8 left-0 right-0 text-center animate-fade-in-up">
+                <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">
+                  Includes up to 5 child profiles
+                </span>
+              </div>
             )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {PLANS.map((plan) => {
               const price = pricingMode === 'family' ? plan.familyPrice : plan.price;
-              
+
               return (
-                <div 
+                <div
                   key={plan.id}
                   className={`relative p-8 rounded-[2rem] bg-white transition-all duration-300 hover:translate-y-[-8px] ${plan.highlight ? 'border-2 border-indigo-500 shadow-2xl scale-105 z-10 ring-4 ring-indigo-50' : 'border border-slate-200 shadow-lg hover:shadow-xl'}`}
                 >
@@ -495,14 +492,14 @@ const LandingPage: React.FC<Props> = ({ onGetStarted, onNavigate }) => {
                       Most Popular
                     </div>
                   )}
-                  
+
                   <h3 className="text-2xl font-bold text-slate-800 mb-2">{plan.name}</h3>
                   <div className="flex items-baseline mb-6">
                     <span className="text-5xl font-extrabold text-slate-900 tracking-tight">${price / 100}</span>
                     <span className="text-slate-500 ml-1 font-medium">/month</span>
                   </div>
                   <p className="text-slate-500 text-sm mb-8 pb-8 border-b border-slate-100 leading-relaxed">{plan.description}</p>
-                  
+
                   <ul className="space-y-4 mb-8">
                     {plan.features.map((feature, i) => (
                       <li key={i} className="flex items-start gap-3 text-sm">
@@ -513,22 +510,21 @@ const LandingPage: React.FC<Props> = ({ onGetStarted, onNavigate }) => {
                       </li>
                     ))}
                     {pricingMode === 'family' && (
-                        <li className="flex items-start gap-3 text-sm bg-indigo-50 -mx-4 px-4 py-2 rounded-lg">
-                            <div className="mt-0.5 rounded-full p-0.5 flex-shrink-0 bg-indigo-200 text-indigo-700">
-                                <Users size={14} strokeWidth={3} />
-                            </div>
-                            <span className="text-indigo-900 font-bold">Multiple Child Profiles</span>
-                        </li>
+                      <li className="flex items-start gap-3 text-sm bg-indigo-50 -mx-4 px-4 py-2 rounded-lg">
+                        <div className="mt-0.5 rounded-full p-0.5 flex-shrink-0 bg-indigo-200 text-indigo-700">
+                          <Users size={14} strokeWidth={3} />
+                        </div>
+                        <span className="text-indigo-900 font-bold">Multiple Child Profiles</span>
+                      </li>
                     )}
                   </ul>
 
-                  <button 
+                  <button
                     onClick={onGetStarted}
-                    className={`w-full py-4 rounded-xl font-bold transition-all ${
-                      plan.highlight 
-                        ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 hover:shadow-xl' 
+                    className={`w-full py-4 rounded-xl font-bold transition-all ${plan.highlight
+                        ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 hover:shadow-xl'
                         : 'bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900'
-                    }`}
+                      }`}
                   >
                     {plan.price === 0 ? 'Start for Free' : `Choose ${pricingMode === 'family' ? 'Family' : 'Personal'}`}
                   </button>
@@ -542,59 +538,59 @@ const LandingPage: React.FC<Props> = ({ onGetStarted, onNavigate }) => {
       {/* FAQ Section */}
       <div className="py-24 bg-white">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-           <div className="text-center mb-16">
-              <h2 className="text-4xl font-bold text-slate-900 mb-4 comic-font">Frequently Asked Questions</h2>
-              <p className="text-slate-500">Everything you need to know about ColorCraft.</p>
-           </div>
-           
-           <div className="space-y-2">
-             <FAQItem 
-               question="Is the content safe for children?" 
-               answer="Absolutely. We use strict safety filters on our AI models to ensure all generated images and text are appropriate for all ages. We also have manual reporting tools."
-             />
-             <FAQItem 
-               question="Can I print the coloring pages?" 
-               answer="Yes! You can download any generated page as a high-quality PDF or PNG file, formatted for standard letter/A4 paper, ready for your home printer."
-             />
-             <FAQItem 
-               question="How does the subscription work?" 
-               answer="You can start for free with a limited number of daily generations. Our Pro and Unlimited plans offer more generations, higher resolution (2K/4K), and priority processing."
-             />
-             <FAQItem 
-               question="Do I own the images I generate?" 
-               answer="Yes, you have full commercial rights to the coloring pages you generate using our paid plans. Free plan users have personal usage rights."
-             />
-           </div>
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-slate-900 mb-4 comic-font">Frequently Asked Questions</h2>
+            <p className="text-slate-500">Everything you need to know about ColorCraft.</p>
+          </div>
+
+          <div className="space-y-2">
+            <FAQItem
+              question="Is the content safe for children?"
+              answer="Absolutely. We use strict safety filters on our AI models to ensure all generated images and text are appropriate for all ages. We also have manual reporting tools."
+            />
+            <FAQItem
+              question="Can I print the coloring pages?"
+              answer="Yes! You can download any generated page as a high-quality PDF or PNG file, formatted for standard letter/A4 paper, ready for your home printer."
+            />
+            <FAQItem
+              question="How does the subscription work?"
+              answer="You can start for free with a limited number of daily generations. Our Pro and Unlimited plans offer more generations, higher resolution (2K/4K), and priority processing."
+            />
+            <FAQItem
+              question="Do I own the images I generate?"
+              answer="Yes, you have full commercial rights to the coloring pages you generate using our paid plans. Free plan users have personal usage rights."
+            />
+          </div>
         </div>
       </div>
 
       {/* CTA Section */}
       <div className="py-20 px-4">
-         <div className="max-w-5xl mx-auto bg-gradient-to-r from-indigo-600 to-purple-600 rounded-[3rem] p-8 md:p-16 text-center text-white relative overflow-hidden shadow-2xl">
-            <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-            <div className="relative z-10">
-               <h2 className="text-4xl md:text-5xl font-bold mb-6 comic-font">Ready to Unleash Creativity?</h2>
-               <p className="text-indigo-100 text-lg md:text-xl max-w-2xl mx-auto mb-10">
-                 Join thousands of parents and teachers creating magic today. No credit card required to start.
-               </p>
-               <button 
-                  onClick={onGetStarted}
-                  className="px-10 py-5 bg-white text-indigo-600 rounded-full font-bold text-lg shadow-xl hover:bg-indigo-50 hover:scale-105 transition-all"
-               >
-                  Create Your First Book
-               </button>
-            </div>
-         </div>
+        <div className="max-w-5xl mx-auto bg-gradient-to-r from-indigo-600 to-purple-600 rounded-[3rem] p-8 md:p-16 text-center text-white relative overflow-hidden shadow-2xl">
+          <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+          <div className="relative z-10">
+            <h1 className="text-5xl md:text-7xl font-bold text-slate-900 mb-6 comic-font leading-tight">Ignite Creativity with <span className="text-indigo-600">KiddoDraw</span></h1>
+            <p className="text-indigo-100 text-lg md:text-xl max-w-2xl mx-auto mb-10">
+              Join thousands of parents and teachers creating magic today. No credit card required to start.
+            </p>
+            <button
+              onClick={onGetStarted}
+              className="px-10 py-5 bg-white text-indigo-600 rounded-full font-bold text-lg shadow-xl hover:bg-indigo-50 hover:scale-105 transition-all"
+            >
+              Create Your First Book
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Safety Badge Section */}
       <div className="py-12 bg-slate-50 border-t border-slate-200">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <div className="flex justify-center gap-8 opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
-             {/* Placeholder Logos for Trust */}
-             <div className="flex items-center gap-2 font-bold text-slate-400"><Shield size={24} /> KidSafe+</div>
-             <div className="flex items-center gap-2 font-bold text-slate-400"><Heart size={24} /> ParentChoice</div>
-             <div className="flex items-center gap-2 font-bold text-slate-400"><Zap size={24} /> FastAI</div>
+            {/* Placeholder Logos for Trust */}
+            <div className="flex items-center gap-2 font-bold text-slate-400"><Shield size={24} /> KidSafe+</div>
+            <div className="flex items-center gap-2 font-bold text-slate-400"><Heart size={24} /> ParentChoice</div>
+            <div className="flex items-center gap-2 font-bold text-slate-400"><Zap size={24} /> FastAI</div>
           </div>
         </div>
       </div>
@@ -608,51 +604,51 @@ const LandingPage: React.FC<Props> = ({ onGetStarted, onNavigate }) => {
                 <div className="bg-indigo-600 text-white p-1.5 rounded-lg">
                   <Palette size={20} />
                 </div>
-                <span className="font-bold text-xl text-slate-800 comic-font">ColorCraft</span>
+                <span className="font-bold text-xl text-slate-800 comic-font">KiddoDraw</span>
               </div>
               <p className="text-slate-500 leading-relaxed max-w-xs">
                 Empowering children's imagination through AI-powered creativity tools. Safe, fun, and magical.
               </p>
             </div>
-            
+
             <div className="grid grid-cols-2 md:grid-cols-3 gap-12">
-               <div>
-                  <h4 className="font-bold text-slate-900 mb-4">Product</h4>
-                  <ul className="space-y-3 text-sm text-slate-500">
-                     <li><button onClick={onGetStarted} className="hover:text-indigo-600">Generator</button></li>
-                     <li><button onClick={onGetStarted} className="hover:text-indigo-600">Studio</button></li>
-                     <li><button onClick={() => document.getElementById('pricing')?.scrollIntoView()} className="hover:text-indigo-600">Pricing</button></li>
-                  </ul>
-               </div>
-               <div>
-                  <h4 className="font-bold text-slate-900 mb-4">Company</h4>
-                  <ul className="space-y-3 text-sm text-slate-500">
-                     <li><button onClick={() => onNavigate('contact')} className="hover:text-indigo-600">Contact</button></li>
-                     <li><button onClick={() => onNavigate('about')} className="hover:text-indigo-600">About Us</button></li>
-                     <li><button className="hover:text-indigo-600">Blog</button></li>
-                  </ul>
-               </div>
-               <div>
-                  <h4 className="font-bold text-slate-900 mb-4">Legal</h4>
-                  <ul className="space-y-3 text-sm text-slate-500">
-                     <li><button onClick={() => onNavigate('privacy')} className="hover:text-indigo-600">Privacy Policy</button></li>
-                     <li><button onClick={() => onNavigate('terms')} className="hover:text-indigo-600">Terms of Service</button></li>
-                  </ul>
-               </div>
+              <div>
+                <h4 className="font-bold text-slate-900 mb-4">Product</h4>
+                <ul className="space-y-3 text-sm text-slate-500">
+                  <li><button onClick={onGetStarted} className="hover:text-indigo-600">Generator</button></li>
+                  <li><button onClick={onGetStarted} className="hover:text-indigo-600">Studio</button></li>
+                  <li><button onClick={() => document.getElementById('pricing')?.scrollIntoView()} className="hover:text-indigo-600">Pricing</button></li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-bold text-slate-900 mb-4">Company</h4>
+                <ul className="space-y-3 text-sm text-slate-500">
+                  <li><button onClick={() => onNavigate('contact')} className="hover:text-indigo-600">Contact</button></li>
+                  <li><button onClick={() => onNavigate('about')} className="hover:text-indigo-600">About Us</button></li>
+                  <li><button className="hover:text-indigo-600">Blog</button></li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-bold text-slate-900 mb-4">Legal</h4>
+                <ul className="space-y-3 text-sm text-slate-500">
+                  <li><button onClick={() => onNavigate('privacy')} className="hover:text-indigo-600">Privacy Policy</button></li>
+                  <li><button onClick={() => onNavigate('terms')} className="hover:text-indigo-600">Terms of Service</button></li>
+                </ul>
+              </div>
             </div>
           </div>
-          
+
           <div className="border-t border-slate-100 mt-12 pt-8 text-center text-slate-400 text-sm flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-4">
-               <p>© {new Date().getFullYear()} ColorCraft. All rights reserved.</p>
-               <span className="hidden md:inline text-slate-300">|</span>
-               <button onClick={onGetStarted} className="hover:text-indigo-600 text-xs font-medium">Admin Login</button>
+              <p>© {new Date().getFullYear()} KiddoDraw. Powered by Gemini & Firebase.</p>
+              <span className="hidden md:inline text-slate-300">|</span>
+              <button onClick={onGetStarted} className="hover:text-indigo-600 text-xs font-medium">Admin Login</button>
             </div>
             <div className="flex gap-4">
-               {/* Social placeholders */}
-               <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-indigo-100 hover:text-indigo-600 transition-colors cursor-pointer">X</div>
-               <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-indigo-100 hover:text-indigo-600 transition-colors cursor-pointer">in</div>
-               <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-indigo-100 hover:text-indigo-600 transition-colors cursor-pointer">Ig</div>
+              {/* Social placeholders */}
+              <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-indigo-100 hover:text-indigo-600 transition-colors cursor-pointer">X</div>
+              <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-indigo-100 hover:text-indigo-600 transition-colors cursor-pointer">in</div>
+              <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-indigo-100 hover:text-indigo-600 transition-colors cursor-pointer">Ig</div>
             </div>
           </div>
         </div>

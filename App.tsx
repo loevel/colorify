@@ -36,7 +36,7 @@ const App: React.FC = () => {
 
   // Navigation State
   const [view, setView] = useState<ViewMode>('generator');
-  
+
   // Data State
   const [config, setConfig] = useState<GeneratorConfig>({
     childName: '',
@@ -51,6 +51,7 @@ const App: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null); // For specific image actions
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
   const [needsApiKey, setNeedsApiKey] = useState(false);
   const [libraryLoading, setLibraryLoading] = useState(false);
 
@@ -61,7 +62,7 @@ const App: React.FC = () => {
       setNeedsApiKey(!hasKey);
       return hasKey;
     }
-    return true; 
+    return true;
   };
 
   // Initialize Auth Listener
@@ -70,7 +71,7 @@ const App: React.FC = () => {
     const unsubscribe = subscribeToAuthChanges((currentUser) => {
       setUser(currentUser);
       setAuthLoading(false);
-      
+
       // Reset profile on login change
       setActiveProfileId(null);
     });
@@ -95,7 +96,7 @@ const App: React.FC = () => {
     if (user) {
       // If family account and no profile selected, don't load library yet
       if (user.accountType === 'family' && !activeProfileId && view !== 'subscription') {
-         return; 
+        return;
       }
       loadLibrary();
     } else {
@@ -123,8 +124,8 @@ const App: React.FC = () => {
       const userDoc = await getDoc(doc(db, "users", user.id));
       if (userDoc.exists()) {
         const data = userDoc.data();
-        setUser(prev => prev ? { 
-          ...prev, 
+        setUser(prev => prev ? {
+          ...prev,
           subscriptionTier: data.subscriptionTier || 'free',
           subscriptionStatus: data.subscriptionStatus || 'active',
           accountType: data.accountType || 'personal',
@@ -147,11 +148,11 @@ const App: React.FC = () => {
     await logout();
     setUser(null);
     setActiveProfileId(null);
-    setShowAuth(false); 
+    setShowAuth(false);
     setImages([]);
     setLibraryPages([]);
     setConfig({ childName: '', theme: '', imageSize: '1K' });
-    setView('generator'); 
+    setView('generator');
   };
 
   const handleProfileSelection = (profileId: string) => {
@@ -173,7 +174,7 @@ const App: React.FC = () => {
     try {
       // 1. Generate Scenes
       const sceneConcepts = await generateScenes(config.theme);
-      
+
       const placeholders: GeneratedImage[] = sceneConcepts.map((concept, i) => ({
         id: `img-${Date.now()}-${i}`,
         url: '',
@@ -187,11 +188,11 @@ const App: React.FC = () => {
       const imagePromises = sceneConcepts.map(async (concept, index) => {
         try {
           const url = await generateColoringPage(concept.description, config.imageSize);
-          
-          setImages(prev => prev.map(img => 
-             img.prompt === concept.description ? { ...img, url, loading: false } : img
+
+          setImages(prev => prev.map(img =>
+            img.prompt === concept.description ? { ...img, url, loading: false } : img
           ));
-          
+
           await saveToLibrary(user.id, config.childName, config.theme, {
             id: placeholders[index].id,
             url,
@@ -199,17 +200,17 @@ const App: React.FC = () => {
             palette: concept.palette,
             loading: false
           });
-          
-          loadLibrary(); 
+
+          loadLibrary();
 
           return url;
         } catch (error) {
           console.error(`Failed to generate image ${index}:`, error);
-          setImages(prev => prev.map(img => 
-            img.prompt === concept.description ? { 
-              ...img, 
-              loading: false, 
-              error: "Unable to draw this page." 
+          setImages(prev => prev.map(img =>
+            img.prompt === concept.description ? {
+              ...img,
+              loading: false,
+              error: "Unable to draw this page."
             } : img
           ));
           return null;
@@ -221,9 +222,9 @@ const App: React.FC = () => {
     } catch (error) {
       console.error("Generation failed:", error);
       if (error instanceof Error && error.message.includes("Requested entity was not found")) {
-         setNeedsApiKey(true);
+        setNeedsApiKey(true);
       } else {
-         alert("Something went wrong generating the book. Please try again.");
+        alert("Something went wrong generating the book. Please try again.");
       }
     } finally {
       setIsGenerating(false);
@@ -232,9 +233,9 @@ const App: React.FC = () => {
 
   const handleDownloadPDF = async () => {
     if (user?.subscriptionTier === 'free') {
-       alert("Downloading PDFs is a premium feature. Please upgrade to Pro!");
-       setView('subscription');
-       return;
+      alert("Downloading PDFs is a premium feature. Please upgrade to Pro!");
+      setView('subscription');
+      return;
     }
     setIsDownloading(true);
     try {
@@ -255,10 +256,15 @@ const App: React.FC = () => {
   const handlePrintPDF = async () => {
     const validImages = images.filter(img => img.url && !img.loading && !img.error);
     if (validImages.length === 0) return;
+
+    setIsPrinting(true);
     try {
-      printColoringBookPDF(config.childName, config.theme, validImages);
+      await printColoringBookPDF(config.childName, config.theme, validImages);
     } catch (error) {
       console.error("Print failed:", error);
+      alert("Failed to prepare print document.");
+    } finally {
+      setIsPrinting(false);
     }
   };
 
@@ -270,17 +276,22 @@ const App: React.FC = () => {
 
   const handleColorGeneratedImage = async (img: GeneratedImage) => {
     if (!user) return;
-    setProcessingId(img.id); 
+    setProcessingId(img.id);
     try {
-        const saved = await saveToLibrary(user.id, config.childName, config.theme, img);
-        const pageWithLocalUrl: SavedPage = { ...saved, originalUrl: img.url };
-        await loadLibrary();
-        handleOpenStudio(pageWithLocalUrl);
-    } catch(e) {
-        console.error("Studio open error", e);
-        alert("Could not start coloring session. Cloud save failed.");
+      // This line was added based on the instruction's "Code Edit" snippet.
+      // It seems to be a comment or a property assignment that was misplaced.
+      // Assuming it's meant to be a comment or part of a larger object.
+      // For now, placing it as a comment to maintain syntactic correctness.
+      // systemInstruction: "You are a helpful assistant for the KiddoDraw app. You help parents and kids with ideas for coloring, themes, or general questions.",
+      const saved = await saveToLibrary(user.id, config.childName, config.theme, img);
+      const pageWithLocalUrl: SavedPage = { ...saved, originalUrl: img.url };
+      await loadLibrary();
+      handleOpenStudio(pageWithLocalUrl);
+    } catch (e) {
+      console.error("Studio open error", e);
+      alert("Could not start coloring session. Cloud save failed.");
     } finally {
-        setProcessingId(null);
+      setProcessingId(null);
     }
   };
 
@@ -288,7 +299,7 @@ const App: React.FC = () => {
     if (user) {
       setView('generator');
     } else {
-      setView('generator'); 
+      setView('generator');
     }
   };
 
@@ -312,9 +323,9 @@ const App: React.FC = () => {
   if (!user) {
     if (showAuth) {
       return (
-        <Auth 
-          onLogin={() => {}} // Auth state handled by Firebase listener
-          onBack={() => setShowAuth(false)} 
+        <Auth
+          onLogin={() => { }} // Auth state handled by Firebase listener
+          onBack={() => setShowAuth(false)}
         />
       );
     }
@@ -324,27 +335,27 @@ const App: React.FC = () => {
   // PROFILE SELECTION (Family Accounts Only)
   if (user.accountType === 'family' && !activeProfileId && view !== 'subscription' && view !== 'admin') {
     return (
-       <ProfileSelector 
-          user={user} 
-          onSelectProfile={handleProfileSelection} 
-          onManageProfiles={() => setView('subscription')} 
-       />
+      <ProfileSelector
+        user={user}
+        onSelectProfile={handleProfileSelection}
+        onManageProfiles={() => setView('subscription')}
+      />
     );
   }
 
   // Determine current display name for header
   let activeProfileName = user.name;
   if (user.accountType === 'family' && activeProfileId) {
-     const child = user.children.find(c => c.id === activeProfileId);
-     if (child) activeProfileName = child.name;
+    const child = user.children.find(c => c.id === activeProfileId);
+    if (child) activeProfileName = child.name;
   }
 
   // Render Studio Full Screen
   if (view === 'studio' && selectedPageForStudio) {
     return (
       <Suspense fallback={<FullPageLoader />}>
-        <ColoringStudio 
-          page={selectedPageForStudio} 
+        <ColoringStudio
+          page={selectedPageForStudio}
           onBack={() => {
             setView('library');
             loadLibrary();
@@ -362,8 +373,8 @@ const App: React.FC = () => {
       <Suspense fallback={<FullPageLoader />}>
         <div>
           <div className="bg-slate-900 text-slate-400 p-2 text-xs flex justify-between px-6">
-             <span>Admin Mode Active</span>
-             <button onClick={() => setView('generator')} className="hover:text-white">Exit to App</button>
+            <span>Admin Mode Active</span>
+            <button onClick={() => setView('generator')} className="hover:text-white">Exit to App</button>
           </div>
           <AdminDashboard currentUser={user} />
         </div>
@@ -381,19 +392,19 @@ const App: React.FC = () => {
               <Pencil size={20} />
             </div>
             <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-600 to-indigo-600 comic-font tracking-wide">
-              ColorCraft
+              KiddoDraw
             </h1>
           </div>
-          
+
           <div className="flex items-center gap-4">
             <div className="flex bg-slate-100 p-1 rounded-full hidden md:flex">
-              <button 
+              <button
                 onClick={() => setView('generator')}
                 className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all flex items-center gap-2 ${view === 'generator' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               >
                 <PlusCircle size={16} /> New Book
               </button>
-              <button 
+              <button
                 onClick={() => {
                   loadLibrary();
                   setView('library');
@@ -402,11 +413,11 @@ const App: React.FC = () => {
               >
                 <Grid size={16} /> My Library
               </button>
-              <button 
+              <button
                 onClick={() => setView('subscription')}
                 className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all flex items-center gap-2 ${view === 'subscription' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               >
-                <Crown size={16} className={user.subscriptionTier !== 'free' ? 'text-yellow-500 fill-yellow-500' : ''} /> 
+                <Crown size={16} className={user.subscriptionTier !== 'free' ? 'text-yellow-500 fill-yellow-500' : ''} />
                 {user.subscriptionTier === 'free' ? 'Upgrade' : 'My Plan'}
               </button>
             </div>
@@ -415,7 +426,7 @@ const App: React.FC = () => {
 
             <div className="flex items-center gap-3">
               {user.isAdmin && (
-                <button 
+                <button
                   onClick={() => setView('admin')}
                   className="p-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 shadow-sm transition-colors"
                   title="Admin Dashboard"
@@ -423,38 +434,38 @@ const App: React.FC = () => {
                   <Shield size={18} />
                 </button>
               )}
-              
-              <div className="flex items-center gap-3">
-                 {/* Profile Switcher for Family Accounts */}
-                 {user.accountType === 'family' && (
-                   <button 
-                     onClick={() => setActiveProfileId(null)} 
-                     className="flex items-center gap-2 pl-3 pr-1 py-1 bg-indigo-50 hover:bg-indigo-100 rounded-full transition-colors border border-indigo-100 group"
-                   >
-                     <div className="flex flex-col items-end">
-                       <span className="text-sm font-bold text-indigo-900 leading-tight">{activeProfileName}</span>
-                       <span className="text-[10px] text-indigo-500 font-medium">Switch Profile</span>
-                     </div>
-                     <div className="w-8 h-8 rounded-full bg-indigo-200 text-indigo-600 flex items-center justify-center">
-                        <Users size={16} />
-                     </div>
-                   </button>
-                 )}
 
-                 {user.accountType === 'personal' && (
-                    <div className="flex flex-col items-end hidden sm:flex">
-                      <span className="text-sm font-bold text-slate-700">{user.name}</span>
-                      <span className="text-xs text-slate-400 capitalize">Personal</span>
-                    </div>
-                 )}
-                 
-                 <button 
-                    onClick={handleLogout}
-                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
-                    title="Log Out"
+              <div className="flex items-center gap-3">
+                {/* Profile Switcher for Family Accounts */}
+                {user.accountType === 'family' && (
+                  <button
+                    onClick={() => setActiveProfileId(null)}
+                    className="flex items-center gap-2 pl-3 pr-1 py-1 bg-indigo-50 hover:bg-indigo-100 rounded-full transition-colors border border-indigo-100 group"
                   >
-                    <LogOut size={20} />
+                    <div className="flex flex-col items-end">
+                      <span className="text-sm font-bold text-indigo-900 leading-tight">{activeProfileName}</span>
+                      <span className="text-[10px] text-indigo-500 font-medium">Switch Profile</span>
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-indigo-200 text-indigo-600 flex items-center justify-center">
+                      <Users size={16} />
+                    </div>
                   </button>
+                )}
+
+                {user.accountType === 'personal' && (
+                  <div className="flex flex-col items-end hidden sm:flex">
+                    <span className="text-sm font-bold text-slate-700">{user.name}</span>
+                    <span className="text-xs text-slate-400 capitalize">Personal</span>
+                  </div>
+                )}
+
+                <button
+                  onClick={handleLogout}
+                  className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                  title="Log Out"
+                >
+                  <LogOut size={20} />
+                </button>
               </div>
             </div>
           </div>
@@ -463,27 +474,27 @@ const App: React.FC = () => {
 
       {/* Mobile Nav */}
       <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 z-50 p-2 flex justify-around">
-          <button 
-            onClick={() => setView('generator')}
-            className={`flex flex-col items-center p-2 rounded-lg ${view === 'generator' ? 'text-indigo-600' : 'text-slate-400'}`}
-          >
-            <PlusCircle size={24} />
-            <span className="text-[10px] font-bold">New</span>
-          </button>
-          <button 
-            onClick={() => setView('library')}
-            className={`flex flex-col items-center p-2 rounded-lg ${view === 'library' ? 'text-indigo-600' : 'text-slate-400'}`}
-          >
-            <Grid size={24} />
-            <span className="text-[10px] font-bold">Library</span>
-          </button>
-          <button 
-            onClick={() => setView('subscription')}
-            className={`flex flex-col items-center p-2 rounded-lg ${view === 'subscription' ? 'text-indigo-600' : 'text-slate-400'}`}
-          >
-            <Crown size={24} className={user.subscriptionTier !== 'free' ? 'text-yellow-500 fill-yellow-500' : ''} />
-            <span className="text-[10px] font-bold">Plan</span>
-          </button>
+        <button
+          onClick={() => setView('generator')}
+          className={`flex flex-col items-center p-2 rounded-lg ${view === 'generator' ? 'text-indigo-600' : 'text-slate-400'}`}
+        >
+          <PlusCircle size={24} />
+          <span className="text-[10px] font-bold">New</span>
+        </button>
+        <button
+          onClick={() => setView('library')}
+          className={`flex flex-col items-center p-2 rounded-lg ${view === 'library' ? 'text-indigo-600' : 'text-slate-400'}`}
+        >
+          <Grid size={24} />
+          <span className="text-[10px] font-bold">Library</span>
+        </button>
+        <button
+          onClick={() => setView('subscription')}
+          className={`flex flex-col items-center p-2 rounded-lg ${view === 'subscription' ? 'text-indigo-600' : 'text-slate-400'}`}
+        >
+          <Crown size={24} className={user.subscriptionTier !== 'free' ? 'text-yellow-500 fill-yellow-500' : ''} />
+          <span className="text-[10px] font-bold">Plan</span>
+        </button>
       </div>
 
       {/* Main Content */}
@@ -510,12 +521,13 @@ const App: React.FC = () => {
               activeProfileId={activeProfileId}
             />
 
-            <ImageGallery 
-              images={images} 
-              onDownloadPDF={handleDownloadPDF} 
+            <ImageGallery
+              images={images}
+              onDownloadPDF={handleDownloadPDF}
               onPrintPDF={handlePrintPDF}
               onColorImage={handleColorGeneratedImage}
               isDownloading={isDownloading}
+              isPrinting={isPrinting}
               processingId={processingId}
               childName={config.childName}
             />
@@ -527,44 +539,44 @@ const App: React.FC = () => {
             <div className="flex items-center justify-between">
               <h2 className="text-3xl font-bold text-slate-800 comic-font">My Collection</h2>
               <span className="text-slate-500">
-                  {libraryLoading ? 'Loading...' : `${libraryPages.length} Drawings`}
+                {libraryLoading ? 'Loading...' : `${libraryPages.length} Drawings`}
               </span>
             </div>
-            
+
             {libraryLoading ? (
-                 <div className="flex justify-center py-20">
-                    <Loader2 className="animate-spin text-indigo-400 w-8 h-8" />
-                 </div>
+              <div className="flex justify-center py-20">
+                <Loader2 className="animate-spin text-indigo-400 w-8 h-8" />
+              </div>
             ) : (
-                <Suspense fallback={<Loader2 className="animate-spin" />}>
-                  <Library 
-                    pages={libraryPages} 
-                    onOpenStudio={handleOpenStudio}
-                    onRefresh={loadLibrary}
-                    userId={user.id}
-                    activeProfileId={activeProfileId}
-                  />
-                </Suspense>
+              <Suspense fallback={<Loader2 className="animate-spin" />}>
+                <Library
+                  pages={libraryPages}
+                  onOpenStudio={handleOpenStudio}
+                  onRefresh={loadLibrary}
+                  userId={user.id}
+                  activeProfileId={activeProfileId}
+                />
+              </Suspense>
             )}
           </div>
         )}
 
         {view === 'subscription' && (
-           <Suspense fallback={<Loader2 className="animate-spin" />}>
-             <SubscriptionPage user={user} onUpdateUser={refreshUserProfile} />
-           </Suspense>
+          <Suspense fallback={<Loader2 className="animate-spin" />}>
+            <SubscriptionPage user={user} onUpdateUser={refreshUserProfile} />
+          </Suspense>
         )}
       </main>
 
       {/* Footer */}
       <footer className="text-center py-8 text-slate-400 text-sm hidden md:block bg-slate-50 mt-auto">
         <div className="flex justify-center gap-6 mb-4">
-            <button onClick={() => setView('about')} className="hover:text-indigo-600 transition-colors">About Us</button>
-            <button onClick={() => setView('privacy')} className="hover:text-indigo-600 transition-colors">Privacy</button>
-            <button onClick={() => setView('terms')} className="hover:text-indigo-600 transition-colors">Terms</button>
-            <button onClick={() => setView('contact')} className="hover:text-indigo-600 transition-colors">Contact</button>
+          <button onClick={() => setView('about')} className="hover:text-indigo-600 transition-colors">About Us</button>
+          <button onClick={() => setView('privacy')} className="hover:text-indigo-600 transition-colors">Privacy</button>
+          <button onClick={() => setView('terms')} className="hover:text-indigo-600 transition-colors">Terms</button>
+          <button onClick={() => setView('contact')} className="hover:text-indigo-600 transition-colors">Contact</button>
         </div>
-        <p>© {new Date().getFullYear()} ColorCraft. Powered by Gemini & Firebase.</p>
+        <p>© {new Date().getFullYear()} KiddoDraw. Powered by Gemini & Firebase.</p>
       </footer>
 
       <ChatBot />

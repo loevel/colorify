@@ -25,9 +25,9 @@ const ContactPage: React.FC<Props> = ({ onBack }) => {
           </div>
           <h2 className="text-3xl font-bold text-slate-900 mb-4 comic-font">Message Sent!</h2>
           <p className="text-slate-600 mb-8">
-            Thanks for reaching out to the ColorCraft team. We'll get back to you as soon as our artists finish their latest masterpiece!
+            © {new Date().getFullYear()} KiddoDraw. All rights reserved. We'll get back to you as soon as our artists finish their latest masterpiece!
           </p>
-          <button 
+          <button
             onClick={onBack}
             className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors"
           >
@@ -42,7 +42,7 @@ const ContactPage: React.FC<Props> = ({ onBack }) => {
     <div className="min-h-screen bg-white animate-fade-in-up">
       <nav className="border-b border-slate-100 bg-white/80 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center">
-          <button 
+          <button
             onClick={onBack}
             className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 transition-colors font-medium"
           >
@@ -63,8 +63,8 @@ const ContactPage: React.FC<Props> = ({ onBack }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2">Your Name</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   required
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
                   placeholder="Leonardo da Vinci"
@@ -72,8 +72,8 @@ const ContactPage: React.FC<Props> = ({ onBack }) => {
               </div>
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2">Email Address</label>
-                <input 
-                  type="email" 
+                <input
+                  type="email"
                   required
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
                   placeholder="leo@art.com"
@@ -93,7 +93,7 @@ const ContactPage: React.FC<Props> = ({ onBack }) => {
 
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2">Message</label>
-              <textarea 
+              <textarea
                 required
                 rows={5}
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all resize-none"
@@ -101,7 +101,7 @@ const ContactPage: React.FC<Props> = ({ onBack }) => {
               />
             </div>
 
-            <button 
+            <button
               type="submit"
               className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2"
             >

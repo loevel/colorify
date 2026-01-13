@@ -47,7 +47,7 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 relative">
       {/* Back Button */}
-      <button 
+      <button
         onClick={onBack}
         className="absolute top-6 left-6 p-2 text-slate-500 hover:text-indigo-600 hover:bg-white bg-white/50 rounded-full transition-all flex items-center gap-2"
       >
@@ -61,7 +61,7 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 rounded-full backdrop-blur-sm mb-4">
             <Palette size={32} />
           </div>
-          <h1 className="text-3xl font-bold comic-font mb-2">ColorCraft</h1>
+          <h1 className="text-3xl font-bold comic-font mb-2">KiddoDraw</h1>
           <p className="text-white/90 font-medium">Where imagination comes to life!</p>
         </div>
 
@@ -102,21 +102,21 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
                     type="text"
                     required
                     value={formData.name}
-                    onChange={e => setFormData({...formData, name: e.target.value})}
+                    onChange={e => setFormData({ ...formData, name: e.target.value })}
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
                     placeholder="Your Name"
                   />
                 </div>
               </>
             )}
-            
+
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email</label>
               <input
                 type="email"
                 required
                 value={formData.email}
-                onChange={e => setFormData({...formData, email: e.target.value})}
+                onChange={e => setFormData({ ...formData, email: e.target.value })}
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
                 placeholder="hello@example.com"
               />
@@ -128,7 +128,7 @@ const Auth: React.FC<Props> = ({ onLogin, onBack }) => {
                 type="password"
                 required
                 value={formData.password}
-                onChange={e => setFormData({...formData, password: e.target.value})}
+                onChange={e => setFormData({ ...formData, password: e.target.value })}
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
                 placeholder="••••••••"
                 minLength={6}

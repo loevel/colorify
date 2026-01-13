@@ -9,6 +9,7 @@ interface Props {
   onPrintPDF: () => void;
   onColorImage: (img: GeneratedImage) => void;
   isDownloading: boolean;
+  isPrinting: boolean;
   processingId: string | null;
   childName: string;
 }
@@ -29,7 +30,7 @@ const LoadingPlaceholder: React.FC<{ prompt: string }> = ({ prompt }) => {
     // Advance status message every 2 seconds, but don't loop indefinitely on the last step
     const interval = setInterval(() => {
       setStepIndex((prev) => (prev < LOADING_STEPS.length - 1 ? prev + 1 : prev));
-    }, 2000); 
+    }, 2000);
     return () => clearInterval(interval);
   }, []);
 
@@ -46,31 +47,36 @@ const LoadingPlaceholder: React.FC<{ prompt: string }> = ({ prompt }) => {
   );
 };
 
-const ImageGallery: React.FC<Props> = ({ images, onDownloadPDF, onPrintPDF, onColorImage, isDownloading, processingId, childName }) => {
+const ImageGallery: React.FC<Props> = ({ images, onDownloadPDF, onPrintPDF, onColorImage, isDownloading, isPrinting, processingId, childName }) => {
   if (images.length === 0) return null;
 
   // Check if at least one image loaded successfully
   const hasSuccessfulImages = images.some(img => img.url && !img.loading && !img.error);
   const allFinished = images.every(img => !img.loading);
+  const isBusy = isDownloading || isPrinting;
 
   return (
     <div className="mt-12 animate-fade-in-up">
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
         <h2 className="text-3xl font-bold text-slate-800 comic-font">Preview Pages</h2>
-        
+
         {allFinished && hasSuccessfulImages && (
           <div className="flex gap-3">
             <button
               onClick={onPrintPDF}
-              disabled={isDownloading}
-              className="px-6 py-3 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 hover:border-indigo-300 rounded-full font-bold shadow-sm transition-all flex items-center gap-2 transform hover:scale-105"
+              disabled={isBusy}
+              className="px-6 py-3 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 hover:border-indigo-300 rounded-full font-bold shadow-sm transition-all flex items-center gap-2 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
-              <Printer size={20} />
+              {isPrinting ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600"></div>
+              ) : (
+                <Printer size={20} />
+              )}
               Print Book
             </button>
             <button
               onClick={onDownloadPDF}
-              disabled={isDownloading}
+              disabled={isBusy}
               className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-full font-bold shadow-lg shadow-green-200 transition-all flex items-center gap-2 transform hover:scale-105"
             >
               {isDownloading ? (
@@ -93,43 +99,42 @@ const ImageGallery: React.FC<Props> = ({ images, onDownloadPDF, onPrintPDF, onCo
               ) : img.error ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50 p-6 text-center border-2 border-slate-100 border-dashed m-2 rounded-xl">
                   <div className="w-12 h-12 bg-red-100 text-red-500 rounded-full flex items-center justify-center mb-3">
-                     <AlertCircle size={24} />
+                    <AlertCircle size={24} />
                   </div>
                   <p className="text-slate-600 font-bold mb-1">Drawing Failed</p>
                   <p className="text-slate-400 text-xs">{img.error}</p>
                 </div>
               ) : (
                 <>
-                  <img 
-                    src={img.url} 
-                    alt="Coloring Page" 
-                    className="w-full h-full object-contain p-4 transition-transform duration-500 group-hover:scale-105" 
+                  <img
+                    src={img.url}
+                    alt="Coloring Page"
+                    className="w-full h-full object-contain p-4 transition-transform duration-500 group-hover:scale-105"
                   />
                   {/* Overlay for actions - Ensure z-index is high enough to be clickable */}
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors pointer-events-none flex items-center justify-center z-10">
-                      <button 
-                        onClick={() => onColorImage(img)}
-                        disabled={processingId !== null}
-                        className={`bg-white text-indigo-600 px-6 py-3 rounded-full font-bold shadow-lg transform transition-all duration-300 flex items-center gap-2 pointer-events-auto hover:bg-indigo-50 border border-indigo-100 ${
-                          processingId === img.id ? 'opacity-100 translate-y-0' : 'translate-y-10 group-hover:translate-y-0 opacity-0 group-hover:opacity-100'
+                    <button
+                      onClick={() => onColorImage(img)}
+                      disabled={processingId !== null}
+                      className={`bg-white text-indigo-600 px-6 py-3 rounded-full font-bold shadow-lg transform transition-all duration-300 flex items-center gap-2 pointer-events-auto hover:bg-indigo-50 border border-indigo-100 ${processingId === img.id ? 'opacity-100 translate-y-0' : 'translate-y-10 group-hover:translate-y-0 opacity-0 group-hover:opacity-100'
                         }`}
-                      >
-                         {processingId === img.id ? (
-                           <>
-                             <Loader2 size={20} className="animate-spin" />
-                             Opening Studio...
-                           </>
-                         ) : (
-                           <>
-                             <Paintbrush size={20} /> Color Now
-                           </>
-                         )}
-                      </button>
+                    >
+                      {processingId === img.id ? (
+                        <>
+                          <Loader2 size={20} className="animate-spin" />
+                          Opening Studio...
+                        </>
+                      ) : (
+                        <>
+                          <Paintbrush size={20} /> Color Now
+                        </>
+                      )}
+                    </button>
                   </div>
                 </>
               )}
             </div>
-            
+
             {/* Show palette even if error, as the concept was valid */}
             {!img.loading && img.palette && (
               <div className={`bg-white rounded-xl p-3 shadow-sm border border-slate-100 flex items-center justify-between ${img.error ? 'opacity-50 grayscale' : ''}`}>

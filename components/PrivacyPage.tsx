@@ -11,7 +11,7 @@ const PrivacyPage: React.FC<Props> = ({ onBack }) => {
       {/* Header */}
       <nav className="border-b border-slate-100 bg-white/80 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center">
-          <button 
+          <button
             onClick={onBack}
             className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 transition-colors font-medium"
           >
@@ -39,7 +39,7 @@ const PrivacyPage: React.FC<Props> = ({ onBack }) => {
               <div>
                 <h2 className="text-2xl font-bold text-slate-800 mb-2">1. Data Collection</h2>
                 <p className="text-slate-600 leading-relaxed">
-                  At ColorCraft, we believe in collecting only what is strictly necessary. We collect:
+                  At KiddoDraw, we believe in collecting only what is strictly necessary. We collect:
                 </p>
                 <ul className="list-disc pl-5 mt-2 space-y-1 text-slate-600">
                   <li>Account information (name, email) to manage your subscription and library.</li>
@@ -91,7 +91,7 @@ const PrivacyPage: React.FC<Props> = ({ onBack }) => {
 
       <footer className="bg-slate-50 border-t border-slate-200 py-12 mt-12">
         <div className="max-w-4xl mx-auto px-4 text-center text-slate-500 text-sm">
-          <p>© {new Date().getFullYear()} ColorCraft. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} KiddoDraw. All rights reserved.</p>
         </div>
       </footer>
     </div>
