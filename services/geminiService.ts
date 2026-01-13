@@ -17,7 +17,7 @@ interface SceneConcept {
 export const generateScenes = async (theme: string): Promise<SceneConcept[]> => {
   const ai = getAI();
   const systemInstruction = "You are a creative director for a children's coloring book. Create fun, age-appropriate, and distinct scene concepts with matching color palettes.";
-  
+
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: `Generate 5 distinct, simple, and fun scene descriptions for a coloring book with the theme: "${theme}". 
@@ -77,17 +77,17 @@ export const generateColoringPage = async (sceneDescription: string, size: Image
 
   for (const part of response.candidates?.[0]?.content?.parts || []) {
     if (part.inlineData) {
-      return `data:image/png;base64,${part.inlineData.data}`;
+      return `data:image/jpeg;base64,${part.inlineData.data}`;
     }
   }
-  
+
   throw new Error("No image data returned from API");
 };
 
 /**
  * Chat with Gemini to ask questions.
  */
-export const sendChatMessage = async (message: string, history: {role: string, parts: {text: string}[]}[]): Promise<string> => {
+export const sendChatMessage = async (message: string, history: { role: string, parts: { text: string }[] }[]): Promise<string> => {
   const ai = getAI();
   const chat = ai.chats.create({
     model: 'gemini-3-pro-preview',
